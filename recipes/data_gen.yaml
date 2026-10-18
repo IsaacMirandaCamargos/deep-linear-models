@@ -1,0 +1,53 @@
+# Receita de geração de dados. Uso: python gen.py recipes/data_gen.yaml
+#
+# Cada item roda data_gen/zoology/<task>.py. Chaves em `args` viram flags
+# (num_kv_pairs -> --num-kv-pairs). `true` vira flag simples, `false` é ignorado
+# (ex.: no_random_non_queries: true -> --no-random-non-queries).
+# Sem `out_dir`, salva em data/<name>/.
+
+datasets:
+  - name: mqar_64_kv8
+    task: mqar
+    args:
+      vocab_size: 8192
+      input_seq_len: 64
+      num_kv_pairs: 8
+      num_train: 100000
+      num_test: 3000
+      seed: 123
+
+  - name: compositional_mqar
+    task: compositional_mqar
+    args: {input_seq_len: 64, num_kv_pairs: 4}
+
+  - name: forgetting_mqar
+    task: forgetting_mqar
+    args: {input_seq_len: 64, num_kv_pairs: 8, num_updates: 4}
+
+  - name: parity
+    task: parity
+    args: {input_seq_len: 64, vocab_size: 3}
+
+  - name: majority
+    task: majority
+    args: {input_seq_len: 64, vocab_size: 3}
+
+  - name: vocab_majority
+    task: vocab_majority
+    args: {input_seq_len: 64, vocab_size: 16}
+
+  - name: cumulative_parity
+    task: cumulative_parity
+    args: {input_seq_len: 64, vocab_size: 2}
+
+  - name: cumulative_majority
+    task: cumulative_majority
+    args: {input_seq_len: 64, vocab_size: 2}
+
+  - name: ar_extrapolate
+    task: ar_extrapolate
+    args:
+      vocab_size: 8192
+      input_seq_len: 128
+      train_configs: "32:4,64:8"
+      test_configs: "64:8,128:16"

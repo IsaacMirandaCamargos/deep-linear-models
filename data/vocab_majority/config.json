@@ -1,0 +1,9 @@
+{
+  "name": "vocab_majority",
+  "out_dir": "/home/isaac/isaac/data/vocab_majority",
+  "seed": 123,
+  "vocab_size": 16,
+  "input_seq_len": 64,
+  "num_train": 100000,
+  "num_test": 3000
+}

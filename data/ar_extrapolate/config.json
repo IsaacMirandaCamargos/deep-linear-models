@@ -1,0 +1,11 @@
+{
+  "name": "ar_extrapolate",
+  "out_dir": "/home/isaac/isaac/data/ar_extrapolate",
+  "seed": 123,
+  "vocab_size": 8192,
+  "input_seq_len": 128,
+  "num_train": 100000,
+  "num_test": 3000,
+  "train_configs": "32:4,64:8",
+  "test_configs": "64:8,128:16"
+}

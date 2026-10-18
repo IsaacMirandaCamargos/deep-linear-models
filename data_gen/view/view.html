@@ -1,0 +1,771 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dataset Playground</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --ink: #1c2330; --muted: #6a7385; --line: #dfe3ea;
+  --key: #cfe3ff; --key-ink: #14407a;
+  --val: #cdf0d8; --val-ink: #145a2e;
+  --upd: #e6d7fb; --upd-ink: #4a2380;
+  --qry: #ffd9a8; --qry-ink: #7a3d00;
+  --k1: #cfe3ff; --k2: #d4f0f0; --k2-ink: #0f5b5b;
+  --noise: #eceef2; --noise-ink: #8a93a5;
+  --bit0: #e4e8ef; --bit1: #cfe3ff; --end: #ffd9a8;
+  --ans: #fff1b8; --ans-ink: #6b5200; --accent: #2f6fed; --hl: #e0234e;
+  --bar: #6e9cf5; --bar-hl: #1d4fc4; --warn-bg: #fff4e0; --warn-ink: #7a4a00; --warn-line: #f2c879;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12151b; --panel: #1b2029; --ink: #e6e9ef; --muted: #8e98ab; --line: #2b3240;
+    --key: #1f3b66; --key-ink: #b9d4ff; --val: #1b4a2e; --val-ink: #bff0cf;
+    --upd: #3d2b63; --upd-ink: #dcc8ff; --qry: #6b3f12; --qry-ink: #ffd9a8;
+    --k1: #1f3b66; --k2: #1a4545; --k2-ink: #bff0f0;
+    --noise: #252b36; --noise-ink: #7a8396; --bit0: #272d39; --bit1: #1f3b66; --end: #6b3f12;
+    --ans: #5a4a10; --ans-ink: #ffeaa0; --accent: #6b9bff; --hl: #ff7a93;
+    --bar: #4f7fe0; --bar-hl: #a9c4ff; --warn-bg: #3a2a0c; --warn-ink: #ffd99a; --warn-line: #6b4d14;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12151b; --panel: #1b2029; --ink: #e6e9ef; --muted: #8e98ab; --line: #2b3240;
+  --key: #1f3b66; --key-ink: #b9d4ff; --val: #1b4a2e; --val-ink: #bff0cf;
+  --upd: #3d2b63; --upd-ink: #dcc8ff; --qry: #6b3f12; --qry-ink: #ffd9a8;
+  --k1: #1f3b66; --k2: #1a4545; --k2-ink: #bff0f0;
+  --noise: #252b36; --noise-ink: #7a8396; --bit0: #272d39; --bit1: #1f3b66; --end: #6b3f12;
+  --ans: #5a4a10; --ans-ink: #ffeaa0; --accent: #6b9bff; --hl: #ff7a93;
+  --bar: #4f7fe0; --bar-hl: #a9c4ff; --warn-bg: #3a2a0c; --warn-ink: #ffd99a; --warn-line: #6b4d14;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+code { font-size: .9em; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+.app { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+aside { border-right: 1px solid var(--line); background: var(--panel); padding: 16px 12px; position: sticky; top: 0; height: 100vh; overflow: auto; }
+aside h1 { font-size: 15px; margin: 0 4px 12px; letter-spacing: .02em; }
+aside .grp { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 14px 10px 4px; }
+.ds { display: block; width: 100%; text-align: left; border: 0; background: none; color: inherit;
+  padding: 7px 10px; border-radius: 8px; cursor: pointer; font: inherit; }
+.ds small { display: block; color: var(--muted); font-size: 12px; }
+.ds:hover { background: var(--bg); }
+.ds.on { background: var(--accent); color: var(--panel); }
+.ds.on small { color: inherit; opacity: .8; }
+.ds .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--warn-line); margin-left: 6px; vertical-align: middle; }
+main { padding: 20px 24px 60px; min-width: 0; max-width: 1400px; }
+h2 { margin: 0 0 2px; font-size: 22px; }
+.sub { color: var(--muted); margin: 0 0 12px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+.card h3 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.desc p { margin: 0 0 8px; } .desc p:last-child { margin: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.fact { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; min-width: 110px; }
+.fact .v { font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.fact .l { font-size: 12px; color: var(--muted); }
+.fact .n { font-size: 12px; color: var(--muted); margin-top: 2px; max-width: 280px; }
+.warn { background: var(--warn-bg); color: var(--warn-ink); border: 1px solid var(--warn-line); border-radius: 10px; padding: 8px 12px; margin-bottom: 8px; font-size: 14px; }
+.warn::before { content: "⚠ "; font-weight: 700; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 4px 0 16px; }
+.tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 8px 14px; color: var(--muted); }
+.tabs button.on { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+.tabs button:hover { color: var(--ink); }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+button, select, input[type=number] { font: inherit; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; }
+button { cursor: pointer; } button:hover { border-color: var(--accent); }
+input[type=number] { width: 84px; }
+label.chk { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); cursor: pointer; user-select: none; }
+.kbd { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 12px; font-size: 13px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+/* anatomia */
+.anat { display: flex; height: 30px; border-radius: 8px; overflow: hidden; gap: 2px; margin: 4px 0 4px; }
+.anat div { display: flex; align-items: center; justify-content: center; font-size: 12px; white-space: nowrap; overflow: hidden; padding: 0 6px; min-width: 6px; }
+.anat-cap { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+.vbar { position: relative; height: 26px; border-radius: 8px; overflow: hidden; display: flex; gap: 2px; }
+.vbar div { display: flex; align-items: center; justify-content: center; font-size: 12px; white-space: nowrap; overflow: hidden; }
+.vticks { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 2px; }
+/* sequência */
+.seqwrap { position: relative; }
+.seq { display: flex; flex-wrap: wrap; gap: 14px 4px; position: relative; }
+.cell { width: 56px; text-align: center; position: relative; }
+.compact .cell { width: 40px; } .compact .tok { font-size: 12px; padding: 4px 0; } .compact .chip { font-size: 11px; }
+.cell .i { font-size: 10px; color: var(--muted); }
+.cell.rstart::before { content: attr(data-region); position: absolute; top: -13px; left: 0; font-size: 10px; color: var(--muted); white-space: nowrap; font-weight: 600; }
+.tok { border-radius: 8px; padding: 6px 0; font-variant-numeric: tabular-nums; font-weight: 600; font-size: 14px; line-height: 1.2;
+  border: 2px solid transparent; cursor: pointer; transition: transform .08s; position: relative; }
+.tok .num { display: block; font-size: 9px; font-weight: 500; opacity: .75; }
+.tok:hover { transform: translateY(-1px); }
+.tok.same { border-color: var(--hl); }
+.tok.link { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.tok.sel { border-color: var(--ink); }
+.tok.key { background: var(--key); color: var(--key-ink); }
+.tok.val { background: var(--val); color: var(--val-ink); }
+.tok.upd { background: var(--upd); color: var(--upd-ink); }
+.tok.qry { background: var(--qry); color: var(--qry-ink); }
+.tok.k1 { background: var(--k1); color: var(--key-ink); }
+.tok.k2 { background: var(--k2); color: var(--k2-ink); }
+.tok.pad { background: transparent; color: var(--noise-ink); border: 1px dashed var(--noise-ink); opacity: .5; }
+.tok.noise { background: var(--noise); color: var(--noise-ink); font-weight: 500; }
+.tok.dis { outline: 2px dashed var(--hl); outline-offset: -2px; color: var(--hl); }
+.tok.bit0 { background: var(--bit0); } .tok.bit1 { background: var(--bit1); color: var(--key-ink); }
+.tok.end { background: var(--end); color: var(--qry-ink); }
+.tok.plain { background: var(--bit0); }
+.tok.rep { opacity: .55; }
+.run { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; height: 16px; margin-top: 2px; }
+.run.hi { color: var(--ink); font-weight: 650; }
+.chip { margin-top: 3px; font-size: 12px; border-radius: 6px; padding: 1px 0; background: var(--ans); color: var(--ans-ink);
+  font-weight: 600; cursor: pointer; border: 2px solid transparent; font-variant-numeric: tabular-nums; }
+.chip.same { border-color: var(--hl); }
+.chip.hide { color: transparent; text-shadow: 0 0 8px var(--ans-ink); user-select: none; }
+.chip.none { display: none; }
+svg.arcs { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+svg.arcs path { fill: none; stroke: var(--accent); stroke-width: 2; }
+svg.arcs path.old { stroke-dasharray: 4 4; stroke: var(--muted); }
+.explain { min-height: 48px; } .explain b { color: var(--accent); }
+.explain ol { margin: 6px 0 0; padding-left: 20px; }
+details summary { cursor: pointer; color: var(--muted); }
+pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; overflow: auto;
+  font-size: 12px; white-space: pre-wrap; word-break: break-word; margin: 8px 0 0; }
+.kv { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 13px; }
+.kv b { color: var(--ink); }
+/* histograma de vocab_majority */
+.hist { display: flex; align-items: flex-end; gap: 6px; height: 110px; }
+.hist div { flex: 1; text-align: center; font-size: 11px; }
+.hist .bar { background: var(--bar); border-radius: 4px 4px 0 0; margin-bottom: 2px; }
+.hist .win .bar { background: var(--bar-hl); }
+/* gráficos */
+.charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.chart h4 { margin: 0; font-size: 14px; }
+.chart .split { font-size: 12px; color: var(--muted); font-weight: 500; }
+.chart .note { font-size: 13px; color: var(--muted); margin: 2px 0 8px; }
+.plot { display: grid; grid-template-columns: auto 1fr; gap: 0 6px; }
+.yax { display: flex; flex-direction: column; justify-content: space-between; font-size: 11px; color: var(--muted); text-align: right; height: 120px; font-variant-numeric: tabular-nums; }
+.bars { display: flex; align-items: flex-end; gap: 1px; height: 120px; border-bottom: 1px solid var(--line);
+  background: linear-gradient(to bottom, var(--line) 1px, transparent 1px) 0 0 / 100% 50%; }
+.bars .b { flex: 1; height: 100%; display: flex; align-items: flex-end; cursor: crosshair; }
+.bars .b i { display: block; width: 100%; background: var(--bar); border-radius: 2px 2px 0 0; min-height: 0; }
+.bars .b.hl i { background: var(--bar-hl); }
+.bars .b:hover i { background: var(--bar-hl); }
+.xax { grid-column: 2; display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.xlab { grid-column: 2; text-align: center; font-size: 11px; color: var(--muted); }
+#tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--bg); font-size: 12px; padding: 4px 8px; border-radius: 6px; display: none; z-index: 9; white-space: nowrap; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+td.num { font-variant-numeric: tabular-nums; }
+tr.click { cursor: pointer; } tr.click:hover td { background: var(--bg); }
+.tbl-wrap { overflow-x: auto; }
+.pill { display: inline-block; font-size: 12px; padding: 0 8px; border-radius: 999px; background: var(--warn-bg); color: var(--warn-ink); border: 1px solid var(--warn-line); }
+.doc > summary { list-style: none; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+.doc > summary::-webkit-details-marker { display: none; }
+.doc > summary h3 { margin: 0; }
+.doc > summary .tg { font-size: 13px; color: var(--muted); }
+.doc[open] > summary { margin-bottom: 12px; }
+.doc .lead { font-size: 16px; } .doc .lead p { margin: 0 0 8px; }
+.doc h4 { margin: 18px 0 6px; font-size: 14px; }
+.doc ol { margin: 0; padding-left: 22px; } .doc ol li { margin-bottom: 4px; }
+.doc p { margin: 0 0 8px; }
+.toy { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 12px; margin-bottom: 8px; }
+.toy .seq { gap: 6px 4px; margin-bottom: 8px; }
+.toy .cell { width: 44px; } .toy .tok { cursor: default; font-size: 13px; padding: 5px 0; } .toy .tok:hover { transform: none; }
+.toy .cap { font-size: 14px; }
+@media (max-width: 900px) { .charts { grid-template-columns: 1fr; } }
+@media (max-width: 760px) {
+  .app { grid-template-columns: 1fr; } aside { border-right: 0; border-bottom: 1px solid var(--line); position: static; height: auto; }
+  .cell { width: 46px; } main { padding: 16px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside><h1>Datasets</h1><div id="list"></div></aside>
+  <main id="main"></main>
+</div>
+<div id="tip"></div>
+<script src="view_data.js"></script>
+<script>
+const NAMES = {
+  mqar: ["MQAR", "Multi-Query Associative Recall"],
+  ar_extrapolate: ["AR extrapolate", "Treina em sequências curtas, testa em mais longas"],
+  compositional_mqar: ["MQAR composicional", "A chave é um par (K1, K2)"],
+  forgetting_mqar: ["MQAR com esquecimento", "Chaves reatribuídas: vale o valor mais recente"],
+  parity: ["Parity", "Paridade de uma sequência de bits"],
+  majority: ["Majority", "Bit majoritário de uma sequência"],
+  vocab_majority: ["Vocab majority", "Token mais frequente"],
+  cumulative_parity: ["Cumulative parity", "Paridade acumulada a cada posição"],
+  cumulative_majority: ["Cumulative majority", "Maioria acumulada a cada posição"],
+};
+const GROUPS = [["Recall (memória associativa)", ["mqar", "compositional_mqar", "forgetting_mqar", "ar_extrapolate"]],
+                ["Circuitos (contagem)", ["parity", "majority", "vocab_majority", "cumulative_parity", "cumulative_majority"]]];
+/* Explicação de cada tarefa. toy: exemplos feitos à mão, um token por item no formato
+   "texto:classe>label@acum" (label e acum opcionais; "_" no texto vira espaço). */
+const DOCS = {
+  parity: {
+    ideia: `<p>O modelo recebe uma fila de bits (cada um é 0 ou 1) e tem que responder uma pergunta só: <b>a quantidade de 1s é par ou ímpar?</b> Ele responde <b>0</b> se for par e <b>1</b> se for ímpar.</p>
+      <p>Pense num <b>interruptor de luz</b> que começa desligado (0). Cada bit 1 aperta o interruptor e cada bit 0 não faz nada. A resposta é o estado do interruptor no final.</p>
+      <p>O último token é sempre o <b>2</b>, que não é um bit: é o sinal de "acabou, agora responda". A resposta é cobrada só nessa posição.</p>`,
+    toy: [{cap: "Bits 1 0 1 1 0. Há três 1s, então ímpar: a resposta é <b>1</b>. A linha <i>acum.</i> é o interruptor depois de cada bit; o último valor dela (1) é a resposta.",
+           t: "1:bit1@1 0:bit0@1 1:bit1@0 1:bit1@1 0:bit0@1 2:end>1"},
+          {cap: "Bits 1 1 0 0. Dois 1s, então par: resposta <b>0</b>.", t: "1:bit1@1 1:bit1@0 0:bit0@0 0:bit0@0 2:end>0"}],
+    passos: ["Sorteia <code>input_seq_len − 1</code> bits (63, no seu config), cada um 0 ou 1 com 50% de chance.",
+      "Conta os 1s. Paridade = contagem mod 2 (resto da divisão por 2).",
+      "Coloca o token <b>2</b> no fim: <code>inputs</code> fica com 63 bits + 2 = 64 tokens.",
+      "<code>labels</code> é <code>-100</code> (ignorado) em tudo, menos na última posição, que recebe a paridade."],
+    testa: `<p><b>Não tem atalho.</b> Trocar um único bit qualquer inverte a resposta, então olhar só uma parte da sequência dá 50% de acerto (chute). Também não adianta "sentir" se há muitos ou poucos 1s: 31 e 32 uns dão respostas opostas.</p>
+      <p>O modelo precisa carregar um <b>estado de 1 bit</b> do começo ao fim e atualizá-lo em cada posição. Para um RNN isso é trivial; para transformers é uma tarefa clássica de dificuldade, principalmente para generalizar a sequências maiores que as do treino.</p>`,
+    ler: `Azul = bit 1, cinza = bit 0, laranja = token de fim (2). O label amarelo aparece só embaixo do fim. A linha <i>acum.</i> mostra a paridade parcial: o valor embaixo do último bit é a resposta. Clique no fim para ver a conta.`,
+  },
+  majority: {
+    ideia: `<p>O modelo recebe uma fila de bits e responde: <b>tem mais 1s ou mais 0s?</b> A resposta é o bit que ganhou (1 ou 0).</p>
+      <p>Como são 63 bits (número ímpar), <b>nunca há empate</b>. Igual à paridade, o token <b>2</b> no fim é o sinal de "responda agora", e só essa posição tem label.</p>`,
+    toy: [{cap: "Três 1s contra dois 0s: a resposta é <b>1</b>. A linha <i>acum.</i> é o placar (#1s − #0s); positivo no fim → 1.",
+           t: "1:bit1@+1 0:bit0@0 1:bit1@+1 1:bit1@+2 0:bit0@+1 2:end>1"},
+          {cap: "Um 1 contra quatro 0s: resposta <b>0</b>.", t: "0:bit0@-1 0:bit0@-2 1:bit1@-1 0:bit0@-2 0:bit0@-3 2:end>0"}],
+    passos: ["Sorteia 63 bits, cada um 0 ou 1 com 50%.",
+      "Resposta = 1 se mais da metade dos bits é 1, senão 0.",
+      "Coloca o token <b>2</b> no fim (64 tokens no total).",
+      "<code>labels</code> é <code>-100</code> em tudo, menos na última posição."],
+    testa: `<p><b>Contagem.</b> Diferente da paridade, aqui uma aproximação já funciona na maioria dos casos: basta saber a <i>proporção</i> de 1s (e a atenção, que faz uma média sobre as posições, calcula isso quase de graça).</p>
+      <p>A dificuldade está nos casos apertados: cerca de 39% dos exemplos têm margem de no máximo 3 (por exemplo 33 contra 30), e aí a contagem precisa ser precisa. Veja o gráfico de margem em <i>Estatísticas</i>.</p>`,
+    ler: `Azul = 1, cinza = 0, laranja = fim. A linha <i>acum.</i> é o placar #1s − #0s até aquela posição; o sinal do último valor é a resposta.`,
+  },
+  vocab_majority: {
+    ideia: `<p>É o majority com <b>15 símbolos</b> em vez de 2: a sequência tem tokens de 1 a 15 e a pergunta é <b>qual token aparece mais vezes?</b></p>
+      <p>O fim é marcado pelo token <b>0</b> e a resposta (o token vencedor) é cobrada só ali.</p>`,
+    toy: [{cap: "O 3 aparece três vezes, mais que qualquer outro: resposta <b>3</b>. <i>acum.</i> = quantas vezes aquele token já apareceu até ali.",
+           t: "3:plain@×1 1:plain@×1 3:plain@×2 2:plain@×1 3:plain@×3 1:plain@×2 0:end>3"}],
+    passos: ["Sorteia 63 tokens, cada um uniforme entre 1 e <code>vocab_size − 1</code> (15).",
+      "Conta quantas vezes cada token aparece.",
+      "Se houver <b>empate</b> no topo, escolhe o <b>menor</b> token empatado e troca uma ocorrência de outro token por ele. Assim sempre há um vencedor único.",
+      "Coloca o token <b>0</b> (fim). <code>labels</code> = <code>-100</code> em tudo, menos no fim, que recebe o vencedor."],
+    testa: `<p>Contar <b>15 coisas ao mesmo tempo</b>. Com 63 tokens e 15 símbolos, cada um aparece ~4 vezes em média, e o vencedor costuma ganhar por <b>1</b> (65% dos exemplos). Ou seja: chegar perto não serve, a contagem tem que ser exata.</p>
+      <p>Cuidado com o viés: como o desempate favorece o menor token, o label 1 aparece ~9,5% das vezes, contra 6,7% se fosse uniforme. Um modelo pode explorar isso.</p>`,
+    ler: `Cada caixa cinza é um token; o fim é laranja. <i>acum.</i> = nº de vezes que aquele token já apareceu. Embaixo da sequência há um gráfico com a contagem final; a barra destacada é o vencedor.`,
+  },
+  cumulative_parity: {
+    ideia: `<p>A mesma pergunta da <b>paridade</b>, só que feita <b>em toda posição</b>: depois de cada bit, a quantidade de 1s vistos <i>até ali</i> é par (0) ou ímpar (1)?</p>
+      <p>Não há token de fim: todas as posições têm label.</p>`,
+    toy: [{cap: "Os labels são o \"interruptor\" depois de cada bit: 1, 1, 0, 1, 1.",
+           t: "1:bit1>1 0:bit0>1 1:bit1>0 1:bit1>1 0:bit0>1"}],
+    passos: ["Sorteia <code>input_seq_len − 1</code> bits (63).",
+      "<code>labels[i]</code> = (bit₀ + … + bitᵢ) mod 2.",
+      "Sem token de fim: <code>inputs</code> e <code>labels</code> têm 63 posições, todas cobradas."],
+    testa: `<p>O mesmo estado de 1 bit da paridade, mas com <b>supervisão densa</b>: o modelo é corrigido em cada passo, não só no fim. Isso torna a tarefa bem mais fácil de aprender: o erro aparece logo onde aconteceu.</p>
+      <p>Atenção: o modelo <b>não vê</b> os labels anteriores no input. Ele ainda precisa calcular a paridade internamente; só recebe feedback mais frequente.</p>`,
+    ler: `Azul = 1, cinza = 0. O amarelo embaixo de cada bit é o label daquela posição. (O config diz <code>vocab_size=3</code>, mas o token 2 nunca aparece aqui.)`,
+  },
+  cumulative_majority: {
+    ideia: `<p>O <b>majority</b> feito <b>em toda posição</b>: depois de cada bit, até ali há pelo menos tantos 1s quanto 0s? Se sim, label 1; senão 0. <b>Empate conta como 1.</b></p>
+      <p>As sequências aqui são curtas: 16 bits.</p>`,
+    toy: [{cap: "<i>acum.</i> = placar #1s − #0s. Label 1 quando o placar é ≥ 0 (empate incluído).",
+           t: "0:bit0>0@-1 1:bit1>1@0 1:bit1>1@+1 0:bit0>1@0 0:bit0>0@-1"}],
+    passos: ["Sorteia 16 bits.", "<code>labels[i]</code> = 1 se (#1s − #0s) até a posição i for ≥ 0, senão 0.",
+      "Sem token de fim; todas as 16 posições têm label."],
+    testa: `<p>Um contador que sobe e desce, com resposta em todo passo. Como empate vira 1, o label 1 é mais comum (57%), principalmente nas posições onde o empate é possível (veja P(label=1) por posição em <i>Estatísticas</i>).</p>
+      <p><b>Cuidado:</b> com 16 bits só existem 65.536 sequências possíveis, então 79% do test aparece idêntico no train. Acurácia alta no test aqui não prova que o modelo aprendeu a contar.</p>`,
+    ler: `Azul = 1, cinza = 0, amarelo = label de cada posição, <i>acum.</i> = placar até ali.`,
+  },
+  mqar: {
+    ideia: `<p>Pense numa <b>agenda de telefones</b>. Primeiro o modelo lê uma lista de pares <i>nome → número</i> (o <b>dicionário</b>). Depois vem uma longa sequência de lixo aleatório, e no meio dela aparecem <b>perguntas</b>: um nome que já estava na agenda.</p>
+      <p>Toda vez que aparece uma chave já vista, o modelo deve prever o <b>valor</b> que estava logo depois dela no dicionário. É "Multi-Query" porque há várias perguntas por sequência (uma por par).</p>`,
+    toy: [{cap: "Dicionário: A→a, B→b. Na posição 6 aparece A de novo, então o modelo deve dizer <b>a</b>; na 12 aparece B, então <b>b</b>. Com números (exemplo da docstring do gerador): A=2, a=8, B=4, b=7.",
+           t: "A:key a:val B:key b:val ·:noise ·:noise A:qry>a ·:noise ·:noise ·:noise ·:noise ·:noise B:qry>b ·:noise"}],
+    passos: ["Divide o vocabulário em dois: <b>chaves</b> vêm de <code>[1, vocab/2)</code> e <b>valores</b> de <code>[vocab/2, vocab)</code>.",
+      "Sorteia <code>num_kv_pairs</code> chaves distintas e valores distintos e escreve <code>K V K V …</code> no começo (8 pares = 16 tokens).",
+      "Escolhe onde as perguntas entram no resto da sequência. As posições seguem uma power-law (<code>power_a=0.01</code>): a maioria fica perto do começo da região de perguntas. Cada chave é perguntada exatamente uma vez, em ordem aleatória.",
+      "O label da posição da pergunta é o valor da chave (o modelo prevê o próximo token).",
+      "As posições que sobraram viram <b>ruído</b>: tokens aleatórios do vocabulário inteiro. Às vezes o ruído é igual a uma chave por acaso (marcado como distrator)."],
+    testa: `<p><b>Memória associativa:</b> guardar vários pares e recuperá-los pelo conteúdo. É a tarefa central do paper <i>Zoology</i> (Arora et al., 2023), que mostrou que ela explica boa parte da diferença de qualidade entre atenção e modelos recorrentes ou convolucionais.</p>
+      <p>A atenção resolve "olhando para trás" até a chave. Um modelo com estado de tamanho fixo precisa <b>comprimir todos os pares no estado</b>, e fica pior quanto mais pares existem.</p>`,
+    ler: `Azul = chave, verde = valor, laranja = pergunta (o amarelo embaixo é a resposta), cinza = ruído. Com "nomes simbólicos", cada chave vira uma letra e seu valor a minúscula. Passe o mouse numa pergunta para ver a seta até a chave.`,
+  },
+  compositional_mqar: {
+    ideia: `<p>Agora a chave tem <b>duas partes</b>, como <i>(cidade, rua) → número</i>. E as partes se <b>repetem</b> entre as entradas: a cidade A aparece com a rua X e com a rua Y, e a rua X aparece com a cidade A e com a cidade B.</p>
+      <p>Então uma parte sozinha é ambígua: só o par completo identifica o valor. A pergunta vem como dois tokens seguidos (K1, K2), e a resposta é cobrada na posição do K2.</p>`,
+    toy: [{cap: "4 entradas formando uma grade 2×2: (A,X)→ax, (A,Y)→ay, (B,X)→bx, (B,Y)→by. A pergunta (B,Y) tem resposta <b>by</b>. Olhando só o Y, daria ay ou by.",
+           t: "A:k1 X:k2 ax:val A:k1 Y:k2 ay:val B:k1 X:k2 bx:val B:k1 Y:k2 by:val ·:noise B:qry Y:qry>by ·:noise A:qry X:qry>ax"}],
+    passos: ["Divide o vocabulário em três terços: K1, K2 e valores.",
+      "Escolhe √n K1 e √n K2 (com 4 pares: 2 e 2) e forma <b>todas as combinações</b> (a grade). Embaralha a ordem.",
+      "Sorteia um valor diferente para cada combinação e escreve as trincas <code>K1 K2 V</code> no começo (4 × 3 = 12 tokens).",
+      "Coloca as perguntas (K1, K2) em posições power-law na região de perguntas; cada combinação é perguntada uma vez.",
+      "Label na posição do K2 = valor do par. O resto vira ruído aleatório."],
+    testa: `<p><b>Composição (binding):</b> o modelo precisa combinar dois tokens para formar a chave. Casar só o último token (K2) acerta no máximo metade, porque cada K2 aparece em duas entradas. Um mecanismo de recall "simples", que procura só o token atual, não basta.</p>`,
+    ler: `Azul = K1, verde-água = K2, verde = valor. A pergunta são dois laranjas seguidos, e a resposta fica embaixo do segundo. Com nomes simbólicos, o valor do par (A, X) aparece como <b>ax</b>.`,
+  },
+  forgetting_mqar: {
+    ideia: `<p>A <b>agenda de telefones</b> do MQAR, mas alguns contatos <b>mudaram de número</b>. Primeiro vem a agenda original; depois, uma lista de correções (<b>updates</b>) com a mesma chave e um valor novo.</p>
+      <p>Na pergunta, a resposta certa é sempre o valor <b>mais recente</b>. O modelo precisa "esquecer" o antigo.</p>`,
+    toy: [{cap: "Original: A→a, B→b, C→c. Updates: A→a′, C→c′. Perguntas: A → <b>a′</b> (atualizada), B → <b>b</b> (não mudou), C → <b>c′</b>.",
+           t: "A:key a:val B:key b:val C:key c:val A:upd a′:upd C:upd c′:upd ·:noise A:qry>a′ ·:noise B:qry>b ·:noise C:qry>c′"}],
+    passos: ["Gera chaves e valores como no MQAR (8 pares).",
+      "Escolhe <code>num_updates</code> chaves (4) e sorteia um valor novo para cada uma.",
+      "Escreve o contexto: os 8 pares originais e depois os 4 pares de update (24 tokens).",
+      "Cada chave original é perguntada uma vez (8 perguntas). O label é o valor <b>final</b>: o do update, se houver.",
+      "Detalhe do gerador: ele tenta garantir que o valor novo seja diferente do antigo, mas compara com a chave errada. Por isso, raramente (18 vezes no train), o \"update\" repete o mesmo valor."],
+    testa: `<p><b>Sobrescrever memória.</b> Metade das perguntas cai em chaves atualizadas. Um modelo que pega a <i>primeira</i> ocorrência da chave erra todas essas e fica em ~50%. Para acertar, ele precisa preferir a ocorrência mais recente.</p>
+      <p>Para modelos recorrentes, isso testa se o estado consegue <b>substituir</b> uma associação em vez de só acumular.</p>`,
+    ler: `Azul/verde = pares originais, roxo = updates, laranja = pergunta. Ao passar o mouse numa pergunta, a seta sólida vai até a ocorrência válida e a tracejada até a antiga. Nomes simbólicos: o valor de um update aparece com ′ (a′).`,
+  },
+  ar_extrapolate: {
+    ideia: `<p>É o <b>MQAR</b>, mas o modelo <b>treina em sequências curtas</b>, com poucos pares, e é <b>testado em sequências mais longas</b>, com mais pares.</p>
+      <p>A pergunta é: o que o modelo aprendeu continua funcionando em tamanhos que ele nunca viu? Isso se chama <b>extrapolação de comprimento</b>.</p>`,
+    toy: [{cap: "Train: um exemplo curto (2 pares) completado com padding até a largura do tensor.",
+           t: "A:key a:val B:key b:val ·:noise B:qry>b A:qry>a ·:noise pad:pad pad:pad pad:pad pad:pad"},
+          {cap: "Test: um exemplo mais longo, com mais pares e perguntas mais distantes.",
+           t: "A:key a:val B:key b:val C:key c:val D:key d:val ·:noise C:qry>c ·:noise A:qry>a ·:noise D:qry>d B:qry>b ·:noise"}],
+    passos: ["Cada config tem o formato <code>seq_len:pares</code>. Train: <code>32:4</code> e <code>64:8</code>. Test: <code>64:8</code> e <code>128:16</code>.",
+      "Para cada config gera um MQAR normal; os exemplos são divididos igualmente entre as configs.",
+      "Os mais curtos são completados com <b>padding</b> (input 0, label <code>-100</code>) até o maior do split. Por isso o tensor do train tem largura 64 e o do test 128.",
+      "<code>slices</code> guarda a config de cada exemplo."],
+    testa: `<p><b>Generalização para fora da distribuição.</b> Metade do test (<code>64:8</code>) tem um tamanho que o train já viu; a outra metade (<code>128:16</code>) tem o dobro do comprimento e o dobro de pares. Comparar a acurácia nas duas metades mostra se o modelo aprendeu o mecanismo de recall ou só decorou tamanhos.</p>
+      <p>A distância média até a chave também dobra: ~20 no train e ~40 no test.</p>`,
+    ler: `Mesmas cores do MQAR; o padding aparece tracejado e não conta. Use o filtro de config para ver só um tamanho.`,
+  },
+};
+const PARAM_DOC = {
+  seed: "seed base; train e test recebem seeds derivadas que nunca se sobrepõem",
+  vocab_size: "tamanho do vocabulário (tokens em [0, vocab_size))",
+  input_seq_len: "comprimento de cada sequência",
+  num_train: "exemplos no train.pt", num_test: "exemplos no test.pt",
+  power_a: "forma da distribuição das posições das queries; 0.01 = concentradas no início, 1.0 = uniforme",
+  num_kv_pairs: "pares chave-valor no dicionário (= nº de queries por exemplo)",
+  num_passes: "quantas vezes o dicionário é repetido (estilo JRT); repetições aparecem esmaecidas",
+  num_updates: "quantas chaves recebem um novo valor depois do dicionário original",
+  random_non_queries: "se true, as posições de ruído recebem tokens aleatórios (senão ficam 0)",
+  train_configs: "configs do train, 'seq_len:num_kv_pairs' separadas por vírgula",
+  test_configs: "configs do test, mesmo formato",
+};
+
+const $ = id => document.getElementById(id);
+const DATA = window.VIEW_DATA || [];
+const MQ = new Set(["mqar", "forgetting_mqar", "compositional_mqar", "ar_extrapolate"]);
+const S0 = {doc: true, ds: null, tab: "ex", split: "test", idx: 0, sel: -1, hover: -1, quiz: false, sym: true, compact: false, cfgf: ""};
+let st = {...S0}, ds = null, rev = new Set();
+const fmtN = n => n.toLocaleString("pt-BR");
+const pct = (v, d = 1) => (100 * v).toLocaleString("pt-BR", {maximumFractionDigits: d}) + "%";
+const LET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const K2LET = "XYZWVUTSRQPONMLKJIHGFEDCBA";
+const nameOf = d => (NAMES[d.task] || [d.task])[0];
+
+/* ---------- análise de um exemplo: papel, apelido simbólico, ligações ---------- */
+function analyze(task0, cfg, x, y) {
+  const task = task0 === "ar_extrapolate" ? "mqar" : task0, n = x.length;
+  const L = task0 === "ar_extrapolate" ? cfg.input_seq_len : n;
+  const A = {r: Array.from({length: n}, () => ({c: "noise"})), al: Array(n).fill(null), lal: Array(n).fill(null),
+             links: {}, regions: [], run: null};
+  const sup = []; for (let i = 0; i < L; i++) if (y[i] !== -100) sup.push(i);
+  if (task === "mqar" || task === "forgetting_mqar" || task === "compositional_mqar") {
+    const kv = cfg.num_kv_pairs, comp = task === "compositional_mqar";
+    const ctx = comp ? 3 * kv : task === "mqar" ? 2 * kv * (cfg.num_passes || 1) : 2 * (kv + cfg.num_updates);
+    const orig = task === "forgetting_mqar" ? 2 * kv : ctx;
+    const km = new Map(), k2m = new Map(), vm = new Map();
+    const get = (m, t, s) => { if (!m.has(t)) m.set(t, s[m.size % s.length] + (m.size >= s.length ? Math.floor(m.size / s.length) : "")); return m.get(t); };
+    if (comp) {
+      for (let j = 0; j + 2 < ctx + 1 && j < ctx; j += 3) {
+        const a = get(km, x[j], LET), b = get(k2m, x[j + 1], K2LET);
+        A.r[j] = {c: "k1"}; A.r[j + 1] = {c: "k2"}; A.r[j + 2] = {c: "val"};
+        A.al[j] = a; A.al[j + 1] = b; A.al[j + 2] = (a + b).toLowerCase(); vm.set(x[j + 2], A.al[j + 2]);
+      }
+    } else {
+      for (let j = 0; j < ctx; j += 2) {
+        const a = get(km, x[j], LET), u = j >= orig, rep = j >= 2 * kv && task === "mqar";
+        A.r[j] = {c: u ? "upd" : "key", rep}; A.r[j + 1] = {c: u ? "upd" : "val", rep};
+        A.al[j] = a; A.al[j + 1] = a.toLowerCase() + (u ? "′" : "");
+        if (!vm.has(x[j + 1]) || u) vm.set(x[j + 1], A.al[j + 1]);
+      }
+    }
+    const qset = new Set(sup); if (comp) sup.forEach(i => qset.add(i - 1));
+    for (let i = ctx; i < L; i++) {
+      if (qset.has(i)) { A.r[i] = {c: "qry"}; A.al[i] = km.get(x[i]) ?? k2m.get(x[i]) ?? "?"; continue; }
+      const hit = km.get(x[i]) ?? k2m.get(x[i]);
+      A.r[i] = {c: "noise", dis: hit !== undefined}; A.al[i] = hit ?? "·";
+    }
+    for (let i = L; i < n; i++) { A.r[i] = {c: "pad"}; A.al[i] = "pad"; }
+    for (const i of sup) {
+      A.lal[i] = vm.get(y[i]) ?? String(y[i]);
+      const keys = [];
+      if (comp) { for (let j = 0; j < ctx; j += 3) if (x[j] === x[i - 1] && x[j + 1] === x[i]) keys.push(j); }
+      else for (let j = 0; j < ctx; j += 2) if (x[j] === x[i]) keys.push(j);
+      A.links[i] = {keys, val: keys.length ? keys[keys.length - 1] + (comp ? 2 : 1) : -1, from: comp ? [i - 1, i] : [i]};
+    }
+    A.regions.push({name: task === "forgetting_mqar" ? "dicionário original" : "dicionário", from: 0, to: orig, c: "key"});
+    if (orig < ctx) A.regions.push({name: "updates", from: orig, to: ctx, c: "upd"});
+    A.regions.push({name: "queries + ruído", from: ctx, to: L, c: "noise"});
+    if (L < n) A.regions.push({name: "padding", from: L, to: n, c: "pad"});
+  } else if (task === "vocab_majority") {
+    const cnt = {};
+    A.run = x.map((t, i) => { if (i === n - 1) return ""; cnt[t] = (cnt[t] || 0) + 1; return "×" + cnt[t]; });
+    for (let i = 0; i < n; i++) A.r[i] = {c: i === n - 1 ? "end" : "plain"};
+    A.regions.push({name: "tokens", from: 0, to: n - 1, c: "bit0"}, {name: "fim", from: n - 1, to: n, c: "end"});
+  } else {
+    let ones = 0, z = 0;
+    A.run = x.map(t => { if (t === 2) return ""; t ? ones++ : z++;
+      return task.includes("parity") ? String(ones % 2) : (ones - z > 0 ? "+" : "") + (ones - z); });
+    for (let i = 0; i < n; i++) A.r[i] = {c: x[i] === 2 ? "end" : (x[i] ? "bit1" : "bit0")};
+    const end = x[n - 1] === 2;
+    A.regions.push({name: "bits", from: 0, to: end ? n - 1 : n, c: "bit1"});
+    if (end) A.regions.push({name: "fim", from: n - 1, to: n, c: "end"});
+  }
+  return A;
+}
+
+const LEGENDS = {
+  ar_extrapolate: [["key","chave"],["val","valor"],["qry","query (modelo responde aqui)"],["noise","ruído"],["pad","padding"]],
+  mqar: [["key","chave"],["val","valor"],["qry","query (modelo responde aqui)"],["noise","ruído"]],
+  forgetting_mqar: [["key","chave"],["val","valor original"],["upd","update (chave + novo valor)"],["qry","query"],["noise","ruído"]],
+  compositional_mqar: [["k1","K1"],["k2","K2"],["val","valor"],["qry","query (K1, K2)"],["noise","ruído"]],
+  parity: [["bit0","bit 0"],["bit1","bit 1"],["end","fim (resposta aqui)"]],
+  majority: [["bit0","bit 0"],["bit1","bit 1"],["end","fim (resposta aqui)"]],
+  vocab_majority: [["plain","token"],["end","fim (resposta aqui)"]],
+  cumulative_parity: [["bit0","bit 0"],["bit1","bit 1"]],
+  cumulative_majority: [["bit0","bit 0"],["bit1","bit 1"]],
+};
+const swatch = c => `background:var(--${{plain:"bit0", pad:"panel"}[c] || c});${c === "pad" ? "border:1px dashed var(--noise-ink)" : ""}`;
+
+/* ---------- explicação passo a passo ---------- */
+function explain(i, x, y, A) {
+  const task = ds.task === "ar_extrapolate" ? "mqar" : ds.task, t = x[i], lab = y[i];
+  const al = j => st.sym && A.al[j] && A.al[j] !== "·" ? ` (<b>${A.al[j]}</b>)` : "";
+  let s = `Posição <b>${i}</b>, token <b>${t}</b>${al(i)}.`;
+  if (A.r[i].dis) s += ` É <b>ruído</b>, mas por acaso igual a uma chave do dicionário: um <b>distrator</b>. O modelo não é cobrado aqui, mas pode se confundir.`;
+  if (lab === -100) {
+    if (A.r[i].c === "pad") return s + " É padding: fica fora da sequência real deste exemplo.";
+    return s + " Label <code>-100</code>: o modelo não é cobrado aqui (a loss ignora).";
+  }
+  s += ` O modelo deve prever <b>${lab}</b>${st.sym && A.lal[i] && A.lal[i] !== String(lab) ? ` (<b>${A.lal[i]}</b>)` : ""}.<ol>`;
+  const lk = A.links[i];
+  if (task === "mqar" || task === "forgetting_mqar") {
+    const ks = lk.keys;
+    if (ks.length) {
+      s += `<li>A query é a chave ${t}. Ela está no dicionário na(s) posição(ões) ${ks.join(", ")}.</li>`;
+      if (ks.length > 1) s += `<li>A 1ª ocorrência (pos ${ks[0]}) tem valor ${x[ks[0] + 1]}, mas depois veio um <b>update</b> (pos ${ks[ks.length - 1]}) com valor ${x[ks[ks.length - 1] + 1]}. Vale o mais recente.</li>`;
+      s += `<li>Resposta: o token logo depois da chave, na pos ${lk.val}: <b>${x[lk.val]}</b>. Distância de recall: ${i - ks[ks.length - 1]} posições.</li>`;
+    }
+  } else if (task === "compositional_mqar") {
+    const k1 = x[i - 1];
+    if (lk.keys.length) { const j = lk.keys[0];
+      s += `<li>A query são os dois tokens (${k1}, ${t})${st.sym ? ` = (${A.al[i - 1]}, ${A.al[i]})` : ""}.</li>`;
+      const sameK1 = []; for (let q = 0; q < i; q += 3) if (A.r[q].c === "k1" && x[q] === k1) sameK1.push(q);
+      s += `<li>Só o K1 não basta: ${k1} aparece em ${sameK1.length} entradas do dicionário (pos ${sameK1.join(", ")}).</li>`;
+      s += `<li>O par completo está na pos ${j}–${j + 1}, seguido do valor <b>${x[j + 2]}</b> (pos ${j + 2}).</li>`; }
+  } else if (task === "parity") {
+    const bits = x.slice(0, -1), ones = bits.reduce((a, b) => a + b, 0);
+    s += `<li>Há ${ones} uns em ${bits.length} bits.</li><li>${ones} é ${ones % 2 ? "ímpar" : "par"} → <b>${lab}</b>.</li>`;
+  } else if (task === "majority") {
+    const bits = x.slice(0, -1), ones = bits.reduce((a, b) => a + b, 0);
+    s += `<li>${ones} uns e ${bits.length - ones} zeros (margem ${ones - (bits.length - ones)}).</li><li>Maioria → <b>${lab}</b>.</li>`;
+  } else if (task === "vocab_majority") {
+    const c = {}; x.slice(0, -1).forEach(v => c[v] = (c[v] || 0) + 1);
+    const top = Object.entries(c).sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, 3);
+    s += `<li>Mais frequentes: ${top.map(([k, v]) => `${k} (${v}×)`).join(", ")}.</li><li>O vencedor é <b>${lab}</b>${top[1] && top[0][1] - top[1][1] === 1 ? " por margem de 1 (pode ter sido um empate desfeito pelo gerador)" : ""}.</li>`;
+  } else if (task === "cumulative_parity") {
+    const ones = x.slice(0, i + 1).reduce((a, b) => a + b, 0);
+    s += `<li>Bits 0..${i}: ${ones} uns.</li><li>${ones % 2 ? "ímpar" : "par"} → <b>${lab}</b>.</li>`;
+  } else if (task === "cumulative_majority") {
+    const ones = x.slice(0, i + 1).reduce((a, b) => a + b, 0), z = i + 1 - ones;
+    s += `<li>Bits 0..${i}: ${ones} uns e ${z} zeros.</li><li>${ones > z ? "uns > zeros" : ones === z ? "empate, que conta como 1" : "zeros > uns"} → <b>${lab}</b>.</li>`;
+  }
+  return s + "</ol>";
+}
+
+/* ---------- explicação da tarefa ---------- */
+function toyRow(spec) {
+  return spec.split(" ").map((tk, i) => {
+    const [, text, cls, lab, run] = tk.match(/^([^:]+):(\w+)(?:>([^@]+))?(?:@(.+))?$/);
+    return `<div class="cell"><div class="i">${i}</div><div class="tok ${cls}">${text.replace(/_/g, " ")}</div>`
+      + (spec.includes("@") ? `<div class="run">${run ?? ""}</div>` : "")
+      + (lab !== undefined ? `<div class="chip">→ ${lab}</div>` : "") + `</div>`;
+  }).join("");
+}
+function taskDoc() {
+  const d = DOCS[ds.task]; if (!d) return "";
+  return `<details class="card doc" id="doc" ${st.doc ? "open" : ""}><summary><h3>Entenda a tarefa</h3><span class="tg">${st.doc ? "recolher" : "mostrar"} <span class="kbd">e</span></span></summary>
+    <div class="lead">${d.ideia}</div>
+    <h4>Exemplo pequeno, feito à mão</h4>
+    ${d.toy.map(t => `<div class="toy"><div class="seq">${toyRow(t.t)}</div><div class="cap">${t.cap}</div></div>`).join("")}
+    <p style="font-size:13px;color:var(--muted)">Cada caixa é um token (o número em cima é a posição). O amarelo embaixo é o <b>label</b>: o que o modelo tem que prever depois de ler até ali. Onde não há amarelo o label é <code>-100</code>: o modelo não é cobrado.</p>
+    <h4>Como o gerador monta cada exemplo</h4><ol>${d.passos.map(p => `<li>${p}</li>`).join("")}</ol>
+    <h4>O que isso testa no modelo</h4>${d.testa}
+    <h4>Como ler a sequência real abaixo</h4><p>${d.ler}</p></details>`;
+}
+
+/* ---------- gráficos ---------- */
+function barChart(c, splitName) {
+  const mx = Math.max(...c.values, 1e-9), f = c.fmt === "pct" ? v => pct(v) : v => fmtN(Math.round(v));
+  const L = c.labels, mid = L[Math.floor((L.length - 1) / 2)];
+  return `<div class="chart"><h4>${c.title} <span class="split">· ${splitName}</span></h4>
+    <div class="plot"><div class="yax"><span>${f(mx)}</span><span>${f(mx / 2)}</span><span>0</span></div>
+    <div class="bars">${c.values.map((v, k) => `<div class="b${c.highlight != null && L[k] === String(c.highlight) ? " hl" : ""}" data-tip="${c.xlabel ? c.xlabel + " " : ""}${L[k]}: <b>${f(v)}</b>"><i style="height:${v / mx * 100}%"></i></div>`).join("")}</div>
+    <div class="xax"><span>${L[0]}</span>${L.length > 2 ? `<span>${mid}</span>` : ""}<span>${L[L.length - 1]}</span></div>
+    ${c.xlabel ? `<div class="xlab">${c.xlabel}</div>` : ""}</div></div>`;
+}
+
+/* ---------- telas ---------- */
+function sidebar() {
+  const byTask = t => DATA.filter(d => d.task === t);
+  let h = `<button class="ds${!ds ? " on" : ""}" data-f="">Visão geral<small>todos os datasets lado a lado</small></button>`;
+  const used = new Set();
+  for (const [g, tasks] of GROUPS) {
+    const items = tasks.flatMap(byTask); if (!items.length) continue;
+    h += `<div class="grp">${g}</div>`;
+    for (const d of items) { used.add(d); h += item(d); }
+  }
+  const rest = DATA.filter(d => !used.has(d));
+  if (rest.length) h += `<div class="grp">Outros</div>` + rest.map(item).join("");
+  $("list").innerHTML = h;
+  function item(d) { return `<button class="ds${ds === d ? " on" : ""}" data-f="${d.folder}">${nameOf(d)}${d.warnings.length ? `<span class="dot" title="${d.warnings.length} alerta(s)"></span>` : ""}<small>data/${d.folder}</small></button>`; }
+}
+
+function overview() {
+  const order = GROUPS.flatMap(g => g[1]), rank = d => (order.indexOf(d.task) + 1 || 99);
+  const rows = [...DATA].sort((a, b) => rank(a) - rank(b)).map(d => {
+    const tr = d.splits.train, te = d.splits.test, s = (te || tr).stats;
+    const len = tr && te && tr.shape[1] !== te.shape[1] ? `${tr.shape[1]} → ${te.shape[1]}` : s.seq_len;
+    return `<tr class="click" data-f="${d.folder}"><td><b>${nameOf(d)}</b><br><small style="color:var(--muted)">data/${d.folder}</small></td>
+      <td>${(NAMES[d.task] || ["", ""])[1]}</td><td class="num">${len}</td><td class="num">${d.config.vocab_size ?? "–"}</td>
+      <td class="num">${tr ? fmtN(tr.total) : "–"} / ${te ? fmtN(te.total) : "–"}</td>
+      <td class="num">${s.sup_min === s.sup_max ? s.sup_min : s.sup_min + "–" + s.sup_max}</td>
+      <td class="num">${pct(s.baseline_major)}</td>
+      <td>${d.warnings.length ? `<span class="pill">${d.warnings.length} alerta${d.warnings.length > 1 ? "s" : ""}</span>` : ""}</td></tr>`;
+  }).join("");
+  const warns = DATA.flatMap(d => d.warnings.map(w => `<div class="warn"><b>${nameOf(d)}:</b> ${w}</div>`)).join("");
+  return `<h2>Visão geral</h2><p class="sub">${DATA.length} datasets em <code>data/</code>. Clique numa linha para abrir.</p>
+  <div class="card desc"><h3>Como ler qualquer dataset daqui</h3>
+    <p>Cada <code>train.pt</code>/<code>test.pt</code> é um dict com <code>inputs</code> e <code>labels</code>, dois tensores <code>[N, L]</code> de inteiros (e às vezes <code>slices</code> com a config).</p>
+    <p><b>Convenção:</b> <code>labels[i]</code> é o que o modelo deve prever <i>depois de ler</i> <code>inputs[0..i]</code>. Onde vale <code>-100</code> o modelo não é cobrado. No viewer o label aparece em amarelo, embaixo do token da mesma posição.</p>
+    <p><b>Baseline</b> abaixo = acurácia de chutar sempre o label mais comum (nas posições cobradas, no test). Um modelo precisa ficar bem acima disso.</p></div>
+  <div class="card"><div class="tbl-wrap"><table><thead><tr><th>Dataset</th><th>Tarefa</th><th>Seq len</th><th>Vocab</th><th>Train / test</th><th>Labels/ex.</th><th>Baseline</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>
+  ${warns ? `<div class="card"><h3>Alertas</h3>${warns}</div>` : ""}`;
+}
+
+function header() {
+  const nm = NAMES[ds.task] || [ds.task, ""], s = (ds.splits.test || ds.splits.train).stats;
+  const tr = ds.splits.train, te = ds.splits.test;
+  const f = (v, l) => `<div class="fact"><div class="v">${v}</div><div class="l">${l}</div></div>`;
+  return `<h2>${nm[0]}</h2><p class="sub">${nm[1]} · <code>data/${ds.folder}</code></p>
+    <div class="chips">${f(tr && te && tr.shape[1] !== te.shape[1] ? `${tr.shape[1]} → ${te.shape[1]}` : s.seq_len, "tokens por exemplo")}
+    ${f(ds.config.vocab_size ?? "–", "vocab_size")}${f(`${tr ? fmtN(tr.total) : "–"} / ${te ? fmtN(te.total) : "–"}`, "train / test")}
+    ${f(s.sup_min === s.sup_max ? s.sup_min : `${s.sup_min}–${s.sup_max}`, "posições cobradas / ex.")}
+    ${f(pct(s.baseline_major), "baseline (label mais comum)")}</div>
+    ${ds.warnings.map(w => `<div class="warn">${w}</div>`).join("")}
+    <div class="tabs">${[["ex", "Exemplo", 1], ["stats", "Estatísticas", 2], ["gen", "Geração e formato", 3]].map(([k, l, n]) =>
+      `<button data-tab="${k}" class="${st.tab === k ? "on" : ""}">${l} <span class="kbd">${n}</span></button>`).join("")}</div>`;
+}
+
+function curExamples() {
+  const S = ds.splits[st.split];
+  if (!st.cfgf || !S.slices) return S.inputs.map((_, i) => i);
+  return S.inputs.map((_, i) => i).filter(i => `len ${S.slices[i].input_seq_len} · ${S.slices[i].num_kv_pairs} pares` === st.cfgf);
+}
+
+function exampleTab() {
+  const S = ds.splits[st.split], list = curExamples();
+  if (!list.includes(st.idx)) st.idx = list[0] ?? 0;
+  const cfg = {...ds.config, ...((S.slices || [])[st.idx] || {})};
+  const x = S.inputs[st.idx], y = S.labels[st.idx], A = analyze(ds.task, cfg, x, y), mq = MQ.has(ds.task);
+  const pos = list.indexOf(st.idx);
+  const configs = S.slices ? [...new Set(S.slices.map(s => `len ${s.input_seq_len} · ${s.num_kv_pairs} pares`))] : [];
+  // anatomia
+  const anat = A.regions.map(r => `<div style="flex:${r.to - r.from};${swatch(r.c)}" title="${r.name}: posições ${r.from}–${r.to - 1}">${(r.to - r.from) / x.length > .08 ? `${r.name} · ${r.to - r.from}` : ""}</div>`).join("");
+  let vocab = "";
+  if (mq) {
+    const V = cfg.vocab_size, comp = ds.task === "compositional_mqar", t3 = Math.floor(V / 3), h = Math.floor(V / 2);
+    const segs = comp ? [["k1", 1, t3, "K1"], ["k2", t3, 2 * t3, "K2"], ["val", 2 * t3, V, "valores"]] : [["key", 1, h, "chaves"], ["val", h, V, "valores"]];
+    vocab = `<div style="font-size:13px;margin:10px 0 4px">De onde vêm os tokens (vocab 0..${V - 1}); o ruído é sorteado do vocab inteiro:</div>
+      <div class="vbar">${segs.map(([c, a, b, l]) => `<div style="flex:${b - a};${swatch(c)}">${l} [${a}, ${b})</div>`).join("")}</div>`;
+  }
+  // sequência
+  const focus = st.hover >= 0 ? st.hover : st.sel, lk = A.links[focus] || null;
+  const linked = new Set(lk ? [...lk.keys.flatMap(k => ds.task === "compositional_mqar" ? [k, k + 1] : [k]), lk.val] : []);
+  const ft = focus >= 0 ? x[focus] : null, starts = new Map(A.regions.map(r => [r.from, r.name]));
+  const cells = x.map((t, i) => {
+    const has = y[i] !== -100, R = A.r[i], hide = st.quiz && has && !rev.has(i);
+    const main = mq && st.sym ? A.al[i] : t;
+    const cls = ["tok", R.c, R.rep && "rep", R.dis && "dis", i === st.sel && "sel", linked.has(i) && "link",
+      ft !== null && t === ft && i !== focus && R.c !== "pad" && !linked.has(i) && "same"].filter(Boolean).join(" ");
+    const lab = has ? (mq && st.sym ? A.lal[i] : y[i]) : "";
+    return `<div class="cell${starts.has(i) && A.regions.length > 1 ? " rstart" : ""}" data-region="${starts.get(i) || ""}">
+      <div class="i">${i}</div>
+      <div class="${cls}" data-i="${i}" title="pos ${i} · token ${t}${y[i] !== -100 ? " · label " + y[i] : ""}">${main}${mq && st.sym && R.c !== "pad" ? `<span class="num">${t}</span>` : ""}</div>
+      ${A.run ? `<div class="run${i === focus ? " hi" : ""}">${A.run[i]}</div>` : ""}
+      <div class="chip${has ? "" : " none"}${hide ? " hide" : ""}" data-c="${i}">${has ? "→ " + lab : "·"}</div></div>`;
+  }).join("");
+  const leg = (LEGENDS[ds.task] || []).map(([c, l]) => `<span><i class="sw" style="${swatch(c)}"></i>${l}</span>`).join("")
+    + `<span><i class="sw" style="background:var(--ans)"></i>label (alvo) da posição</span>`
+    + (mq ? `<span><i class="sw" style="outline:2px dashed var(--hl);outline-offset:-2px;background:var(--noise)"></i>ruído = chave (distrator)</span>` : "")
+    + (A.run ? `<span><b class="mono" style="font-size:11px">acum.</b> ${ds.task.includes("parity") ? "paridade até aqui" : ds.task === "vocab_majority" ? "nº de vezes que o token já apareceu" : "#uns − #zeros até aqui"}</span>` : "");
+  let hist = "";
+  if (ds.task === "vocab_majority") {
+    const cnt = {}; x.slice(0, -1).forEach(t => cnt[t] = (cnt[t] || 0) + 1);
+    const keys = Object.keys(cnt).map(Number).sort((a, b) => a - b), mx = Math.max(...Object.values(cnt)), win = y[y.length - 1];
+    hist = `<div class="card"><h3>Contagem de tokens neste exemplo</h3><div class="hist">${keys.map(k => `<div class="${k === win && !(st.quiz && !rev.has(y.length - 1)) ? "win" : ""}"><div class="bar" style="height:${cnt[k] / mx * 80}px"></div>${k}<br>${cnt[k]}×</div>`).join("")}</div></div>`;
+  }
+  const nAns = y.filter(v => v !== -100).length;
+  return taskDoc() + `<div class="card"><h3>Anatomia deste exemplo</h3><div class="anat">${anat}</div>
+      <div class="anat-cap">${A.regions.map(r => `${r.name}: ${r.from}–${r.to - 1}`).join(" · ")} · ${nAns} ${nAns === 1 ? "posição" : "posições"} com label${S.slices ? ` · config deste exemplo: <b>${S.slices[st.idx].input_seq_len} tokens, ${S.slices[st.idx].num_kv_pairs} pares</b>` : ""}</div>${vocab}</div>
+    <div class="card">
+      <h3>Sequência</h3>
+      <div class="controls">
+        <select id="split">${Object.keys(ds.splits).map(k => `<option ${k === st.split ? "selected" : ""}>${k}</option>`).join("")}</select>
+        ${configs.length > 1 ? `<select id="cfgf"><option value="">todas as configs</option>${configs.map(c => `<option ${c === st.cfgf ? "selected" : ""}>${c}</option>`).join("")}</select>` : ""}
+        <button id="prev" title="←">←</button>
+        <input type="number" id="idx" min="0" max="${S.inputs.length - 1}" value="${st.idx}">
+        <span style="color:var(--muted)">${pos + 1}/${list.length} mostrados${S.ids ? ` (#${S.ids[st.idx]} no arquivo)` : ""} · ${fmtN(S.total)} no arquivo</span>
+        <button id="next" title="→">→</button>
+        <button id="rand">aleatório <span class="kbd">r</span></button>
+        ${mq ? `<label class="chk"><input type="checkbox" id="sym" ${st.sym ? "checked" : ""}> nomes simbólicos <span class="kbd">s</span></label>` : ""}
+        <label class="chk"><input type="checkbox" id="quiz" ${st.quiz ? "checked" : ""}> esconder respostas <span class="kbd">q</span></label>
+        <label class="chk"><input type="checkbox" id="compact" ${st.compact ? "checked" : ""}> compacto</label>
+      </div>
+      <div class="legend">${leg}</div>
+      ${mq && st.sym ? `<p style="font-size:13px;color:var(--muted);margin:-4px 0 12px">Nomes simbólicos: ${ds.task === "compositional_mqar" ? "K1 vira A, B…, K2 vira X, Y… e o valor do par (A, X) vira <b>ax</b>" : "cada chave vira uma letra (A, B…) e seu valor a minúscula (a, b…)" + (ds.task === "forgetting_mqar" ? "; o valor de um update ganha ′ (a′)" : "") + "; ruído vira ·"}. O número real fica embaixo. Passe o mouse numa query para ver a seta até o dicionário${ds.task === "forgetting_mqar" ? " (tracejada = ocorrência antiga)" : ""}.</p>` : ""}
+      <div class="seqwrap ${st.compact ? "compact" : ""}" id="seqwrap"><div class="seq" id="seq">${cells}</div><svg class="arcs" id="arcs"></svg></div>
+    </div>
+    <div class="card explain"><h3>Explicação (clique num token ou numa resposta)</h3><div>${st.sel >= 0 ? explain(st.sel, x, y, A) : "Clique em um token ou num label amarelo para ver de onde vem a resposta."}</div></div>
+    ${hist}
+    <div class="card"><h3>Dados brutos deste exemplo</h3>
+      <div class="kv"><span>config <b>${Object.entries(cfg).filter(([k]) => !["out_dir", "name", "num_train", "num_test"].includes(k)).map(([k, v]) => k + "=" + v).join(" · ")}</b></span></div>
+      <details><summary>ver arrays inputs / labels</summary><pre>inputs: ${JSON.stringify(x)}\n\nlabels: ${JSON.stringify(y)}</pre></details></div>`;
+}
+
+function statsTab() {
+  const sp = Object.keys(ds.splits);
+  const facts = sp.map(k => {
+    const s = ds.splits[k].stats;
+    const base = [{label: "exemplos analisados", value: fmtN(s.n), note: s.n < ds.splits[k].total ? `amostra de ${fmtN(ds.splits[k].total)}` : "o split inteiro"},
+      {label: "tokens distintos usados", value: fmtN(s.n_tokens_used), note: `de ${s.tok_min} a ${s.tok_max}`},
+      {label: "labels distintos", value: fmtN(s.label_distinct), note: `mais comum: ${s.baseline_major_label} (${pct(s.baseline_major, 2)})`}];
+    return `<div style="margin-bottom:10px"><div style="font-weight:600;margin-bottom:6px">${k}</div><div class="chips">${[...base, ...s.facts].map(f =>
+      `<div class="fact"><div class="v">${f.value}</div><div class="l">${f.label}</div>${f.note ? `<div class="n">${f.note}</div>` : ""}</div>`).join("")}</div></div>`;
+  }).join("");
+  const ov = ds.overlap;
+  const ovh = ov ? `<div class="card"><h3>Train × test</h3><div class="kv">
+      <span>test que aparece idêntico no train <b>${fmtN(ov.test_in_train)}</b> (${pct(ov.test_in_train / ds.splits.test.total)})</span>
+      <span>exemplos únicos no train <b>${fmtN(ov.train_unique)}</b> de ${fmtN(ds.splits.train.total)}</span>
+      <span>únicos no test <b>${fmtN(ov.test_unique)}</b> de ${fmtN(ds.splits.test.total)}</span></div></div>` : "";
+  const titles = [...new Set(sp.flatMap(k => ds.splits[k].stats.charts.map(c => c.title)))];
+  const charts = titles.map(t => {
+    const cs = sp.map(k => [k, ds.splits[k].stats.charts.find(c => c.title === t)]).filter(([, c]) => c);
+    return `<div class="card"><h3>${t}</h3><p class="note" style="margin:-4px 0 12px;color:var(--muted);font-size:14px">${cs[0][1].note}${cs.some(([, c]) => c.highlight != null) ? " Barra mais clara = label mais comum (o baseline)." : ""} Passe o mouse nas barras para ver os valores.</p>
+      <div class="charts">${cs.map(([k, c]) => barChart(c, k)).join("")}</div></div>`;
+  }).join("");
+  return `<div class="card"><h3>Números-chave</h3>${facts}</div>${ovh}${charts}`;
+}
+
+function genTab() {
+  const c = ds.config, skip = new Set(["name", "out_dir"]);
+  const flags = Object.entries(c).filter(([k]) => !skip.has(k)).map(([k, v]) => {
+    const f = "--" + k.replace(/_/g, "-");
+    if (v === true) return null; if (v === false) return k === "random_non_queries" ? "--no-random-non-queries" : null;
+    return `${f} ${typeof v === "string" && v.includes(",") ? `"${v}"` : v}`;
+  }).filter(Boolean);
+  const cmd = `python data_gen/zoology/${ds.task}.py \\\n    ${flags.join(" \\\n    ")} \\\n    --out-dir data/${ds.folder}`;
+  const rows = Object.entries(c).filter(([k]) => !skip.has(k)).map(([k, v]) =>
+    `<tr><td class="mono">${k}</td><td class="num mono">${v}</td><td style="color:var(--muted)">${PARAM_DOC[k] || ""}</td></tr>`).join("");
+  const shapes = Object.entries(ds.splits).map(([k, s]) => `<tr><td class="mono">${k}.pt</td><td class="mono">inputs [${s.shape.join(", ")}] · labels [${s.shape.join(", ")}]</td><td style="color:var(--muted)">${s.slices ? "slices: lista com a config de cada exemplo" : "slices: config única do split (ou ausente)"}</td></tr>`).join("");
+  const snip = `import torch
+d = torch.load("data/${ds.folder}/test.pt", weights_only=False)
+x, y = d["inputs"], d["labels"]          # LongTensor [N, L]
+i = 0
+mask = y[i] != -100                      # posições cobradas
+print(x[i])
+print(y[i][mask], mask.nonzero().flatten())`;
+  return `<div class="card"><h3>Como regenerar</h3><p style="margin:0 0 4px">Gerador: <code>data_gen/zoology/${ds.task}.py</code> (ou via receita: <code>python gen.py recipes/data_gen.yaml --only ${ds.folder}</code>)</p><pre>${cmd}</pre></div>
+    <div class="card"><h3>Parâmetros (config.json)</h3><div class="tbl-wrap"><table><tbody>${rows}</tbody></table></div></div>
+    <div class="card"><h3>Formato dos arquivos</h3><div class="tbl-wrap"><table><tbody>${shapes}</tbody></table></div>
+      <p style="margin:12px 0 0"><code>labels[i]</code> = o que o modelo deve prever depois de ler <code>inputs[0..i]</code>; <code>-100</code> = ignorado pela loss.</p>
+      <pre>${snip}</pre></div>`;
+}
+
+/* ---------- render e eventos ---------- */
+function render() {
+  sidebar();
+  if (!DATA.length) { $("main").innerHTML = `<h2>Sem dados</h2><p>Rode <code>python data_gen/view/build_view.py</code>.</p>`; return; }
+  if (!ds) { $("main").innerHTML = overview(); saveHash(); return; }
+  $("main").innerHTML = header() + (st.tab === "ex" ? exampleTab() : st.tab === "stats" ? statsTab() : genTab());
+  if (st.tab === "ex") drawArcs();
+  saveHash();
+}
+
+function drawArcs() {
+  const svg = $("arcs"), focus = st.hover >= 0 ? st.hover : st.sel;
+  const S = ds.splits[st.split], cfg = {...ds.config, ...((S.slices || [])[st.idx] || {})};
+  const A = analyze(ds.task, cfg, S.inputs[st.idx], S.labels[st.idx]), lk = A.links[focus];
+  if (!lk || !lk.keys.length) { svg.innerHTML = ""; return; }
+  const box = $("seqwrap").getBoundingClientRect();
+  const pt = i => { const r = document.querySelector(`.tok[data-i="${i}"]`).getBoundingClientRect(); return [r.left + r.width / 2 - box.left, r.top - box.top]; };
+  const [qx, qy] = pt(lk.from[lk.from.length - 1]);
+  svg.innerHTML = lk.keys.map((k, n) => {
+    const [kx, ky] = pt(k), h = Math.min(60, 20 + Math.abs(qx - kx) / 8 + Math.abs(qy - ky) / 4);
+    return `<path class="${n < lk.keys.length - 1 ? "old" : ""}" d="M${qx},${qy} C${qx},${qy - h} ${kx},${ky - h} ${kx},${ky}"/>`;
+  }).join("");
+}
+
+function pick(d) { ds = d; st = {...S0, ds: d ? d.folder : null, tab: st.tab, doc: st.doc, sym: st.sym, compact: st.compact};
+  if (d) st.split = d.splits.test ? "test" : Object.keys(d.splits)[0]; rev = new Set(); render(); window.scrollTo(0, 0); }
+function go(i) {
+  const list = curExamples(); if (!list.length) return;
+  let p = list.indexOf(st.idx); p = i === "next" ? p + 1 : i === "prev" ? p - 1 : i === "rand" ? Math.floor(Math.random() * list.length) : list.indexOf(i);
+  if (p < 0 && typeof i === "number") { st.idx = Math.max(0, Math.min(i, ds.splits[st.split].inputs.length - 1)); }
+  else st.idx = list[(p + list.length) % list.length];
+  st.sel = -1; st.hover = -1; rev = new Set(); render();
+}
+function saveHash() { const h = ds ? `${ds.folder}/${st.tab}/${st.split}/${st.idx}${st.sel >= 0 ? "/" + st.sel : ""}` : ""; if (location.hash.slice(1) !== h) history.replaceState(null, "", "#" + h); }
+function loadHash() {
+  const [f, tab, split, idx, sel] = location.hash.slice(1).split("/"), d = DATA.find(d => d.folder === f);
+  if (!d) return pick(null);
+  pick(d); if (["ex", "stats", "gen"].includes(tab)) st.tab = tab;
+  if (d.splits[split]) st.split = split; if (+idx >= 0 && +idx < d.splits[st.split].inputs.length) st.idx = +idx;
+  if (sel !== undefined && +sel >= 0) st.sel = +sel; render();
+}
+
+$("list").onclick = e => { const b = e.target.closest(".ds"); if (b) pick(DATA.find(d => d.folder === b.dataset.f) || null); };
+$("main").addEventListener("click", e => {
+  const tr = e.target.closest("tr.click"); if (tr) return pick(DATA.find(d => d.folder === tr.dataset.f));
+  const tb = e.target.closest("[data-tab]"); if (tb) { st.tab = tb.dataset.tab; return render(); }
+  const id = e.target.id;
+  if (id === "prev") return go("prev"); if (id === "next") return go("next"); if (id === "rand") return go("rand");
+  const t = e.target.closest(".tok[data-i]"), c = e.target.closest(".chip[data-c]");
+  if (t) { st.sel = +t.dataset.i; render(); }
+  else if (c && !c.classList.contains("none")) { st.sel = +c.dataset.c; rev.add(st.sel); render(); }
+});
+$("main").addEventListener("toggle", e => { if (e.target.id === "doc" && e.target.open !== st.doc) { st.doc = e.target.open; render(); } }, true);
+$("main").addEventListener("change", e => {
+  const id = e.target.id;
+  if (id === "split") { st.split = e.target.value; st.cfgf = ""; st.idx = 0; go(0); }
+  else if (id === "cfgf") { st.cfgf = e.target.value; st.idx = -1; go("next"); }
+  else if (id === "idx") go(+e.target.value);
+  else if (id === "quiz") { st.quiz = e.target.checked; rev = new Set(); render(); }
+  else if (id === "sym") { st.sym = e.target.checked; render(); }
+  else if (id === "compact") { st.compact = e.target.checked; render(); }
+});
+$("main").addEventListener("mouseover", e => {
+  const tip = e.target.closest("[data-tip]");
+  if (tip) { $("tip").innerHTML = tip.dataset.tip; $("tip").style.display = "block"; } else $("tip").style.display = "none";
+  if (!ds || st.tab !== "ex") return;
+  const t = e.target.closest(".tok[data-i]"), v = t ? +t.dataset.i : -1;
+  if (v !== st.hover) { st.hover = v; render(); }
+});
+$("main").addEventListener("mousemove", e => { const s = $("tip").style; s.left = e.clientX + 12 + "px"; s.top = e.clientY - 30 + "px"; });
+$("main").addEventListener("mouseleave", () => { $("tip").style.display = "none"; if (st.hover >= 0) { st.hover = -1; render(); } });
+window.addEventListener("resize", () => ds && st.tab === "ex" && drawArcs());
+document.onkeydown = e => {
+  if (e.target.tagName === "INPUT" && e.target.type === "number" || e.target.tagName === "SELECT" || e.metaKey || e.ctrlKey) return;
+  if (!ds) return;
+  const k = e.key;
+  if (k === "1" || k === "2" || k === "3") { st.tab = ["ex", "stats", "gen"][+k - 1]; return render(); }
+  if (st.tab !== "ex") return;
+  if (k === "ArrowRight") go("next"); else if (k === "ArrowLeft") go("prev"); else if (k === "r") go("rand");
+  else if (k === "q") { st.quiz = !st.quiz; rev = new Set(); render(); }
+  else if (k === "s" && MQ.has(ds.task)) { st.sym = !st.sym; render(); }
+  else if (k === "Escape") { st.sel = -1; render(); }
+  else if (k === "e") { st.doc = !st.doc; render(); }
+};
+
+loadHash();
+</script>
+</body>
+</html>

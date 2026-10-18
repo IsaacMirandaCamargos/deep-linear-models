@@ -1,0 +1,9 @@
+{
+  "name": "parity",
+  "out_dir": "/home/isaac/isaac/data/parity",
+  "seed": 123,
+  "vocab_size": 3,
+  "input_seq_len": 64,
+  "num_train": 100000,
+  "num_test": 3000
+}
