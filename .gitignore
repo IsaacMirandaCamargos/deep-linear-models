@@ -3,4 +3,5 @@ __pycache__/
 *.pyc
 # datasets são regeneráveis com: python gen.py recipes/data/data_gen.yaml
 data/*/*.pt
-checkpoints/
+checkpoints/*
+!checkpoints/.gitkeep
