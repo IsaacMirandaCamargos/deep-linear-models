@@ -1,4 +1,4 @@
-# Receita de geração de dados. Uso: python gen.py recipes/data_gen.yaml
+# Receita de geração de dados. Uso: python gen.py recipes/data/data_gen.yaml
 #
 # Cada item roda data_gen/zoology/<task>.py. Chaves em `args` viram flags
 # (num_kv_pairs -> --num-kv-pairs). `true` vira flag simples, `false` é ignorado

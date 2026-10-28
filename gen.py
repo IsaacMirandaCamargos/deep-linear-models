@@ -1,6 +1,6 @@
 """Gera dados a partir de uma receita yaml.
 
-Uso: python gen.py recipes/data_gen.yaml [--only NAME ...]
+Uso: python gen.py recipes/data/data_gen.yaml [--only NAME ...]
 """
 import argparse
 import subprocess

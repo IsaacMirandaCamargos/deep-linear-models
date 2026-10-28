@@ -673,7 +673,7 @@ i = 0
 mask = y[i] != -100                      # posições cobradas
 print(x[i])
 print(y[i][mask], mask.nonzero().flatten())`;
-  return `<div class="card"><h3>Como regenerar</h3><p style="margin:0 0 4px">Gerador: <code>data_gen/zoology/${ds.task}.py</code> (ou via receita: <code>python gen.py recipes/data_gen.yaml --only ${ds.folder}</code>)</p><pre>${cmd}</pre></div>
+  return `<div class="card"><h3>Como regenerar</h3><p style="margin:0 0 4px">Gerador: <code>data_gen/zoology/${ds.task}.py</code> (ou via receita: <code>python gen.py recipes/data/data_gen.yaml --only ${ds.folder}</code>)</p><pre>${cmd}</pre></div>
     <div class="card"><h3>Parâmetros (config.json)</h3><div class="tbl-wrap"><table><tbody>${rows}</tbody></table></div></div>
     <div class="card"><h3>Formato dos arquivos</h3><div class="tbl-wrap"><table><tbody>${shapes}</tbody></table></div>
       <p style="margin:12px 0 0"><code>labels[i]</code> = o que o modelo deve prever depois de ler <code>inputs[0..i]</code>; <code>-100</code> = ignorado pela loss.</p>

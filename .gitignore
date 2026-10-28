@@ -1,5 +1,6 @@
 .venv/
 __pycache__/
 *.pyc
-# datasets são regeneráveis com: python gen.py recipes/data_gen.yaml
+# datasets são regeneráveis com: python gen.py recipes/data/data_gen.yaml
 data/*/*.pt
+checkpoints/
