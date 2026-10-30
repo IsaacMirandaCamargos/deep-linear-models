@@ -15,7 +15,9 @@ import torch
 import torch.nn.functional as F
 import yaml
 
-from data_loader import load_config, load_split, make_loader
+from torch.utils.data import DataLoader
+
+from data_loader import load_config, load_split
 from eval import eval_checkpoints, evaluate_model, list_checkpoints, pick_device, run_dir
 from model import build_model
 
@@ -31,13 +33,23 @@ def build_optimizer(params, cfg: dict):
     raise ValueError(f"optimizer desconhecido: {kind}")
 
 
-def lr_factor(step: int, total: int, warmup: int, kind: str) -> float:
+def lr_factor(step: int, total: int, warmup: int, kind: str, min_ratio: float = 0.0) -> float:
+    """Multiplicador do lr: warmup linear e depois cosine até min_ratio (= min_lr / lr) ou constante."""
     if step < warmup:
         return (step + 1) / warmup
     if kind == "constant":
         return 1.0
     progress = (step - warmup) / max(1, total - warmup)
-    return 0.5 * (1 + math.cos(math.pi * progress))
+    return min_ratio + (1 - min_ratio) * 0.5 * (1 + math.cos(math.pi * progress))
+
+
+def batch_size_at(ds_cfg: dict, epoch: int) -> int:
+    """batch_size da época: o último item de `batch_size_schedule` com from_epoch <= epoch, senão `batch_size`."""
+    size = ds_cfg["batch_size"]
+    for item in sorted(ds_cfg.get("batch_size_schedule", []), key=lambda i: i["from_epoch"]):
+        if item["from_epoch"] <= epoch:
+            size = item["batch_size"]
+    return size
 
 
 def loss_and_hits(logits, labels):
@@ -65,16 +77,21 @@ def main():
 
     ds = cfg["dataset"]
     vocab_size = load_config(ds["name"])["vocab_size"]
-    train_loader = make_loader(ds["name"], ds["train_split"], batch_size=ds["batch_size"],
-                               num_workers=ds.get("num_workers", 0))
+    train_ds = load_split(ds["name"], ds["train_split"])
+
+    def make_train_loader(epoch):
+        return DataLoader(train_ds, batch_size=batch_size_at(ds, epoch), shuffle=True,
+                          num_workers=ds.get("num_workers", 0))
     eval_ds = load_split(ds["name"], ds["eval_split"])
 
     model = build_model(cfg["model"], vocab_size).to(device)
     opt = build_optimizer(model.parameters(), cfg["optimizer"])
     tr, ck = cfg["train"], cfg["checkpoint"]
-    total_steps = tr["epochs"] * len(train_loader)
+    total_steps = sum(math.ceil(len(train_ds) / batch_size_at(ds, e)) for e in range(1, tr["epochs"] + 1))
+    sc = cfg["scheduler"]
     sched = torch.optim.lr_scheduler.LambdaLR(
-        opt, lambda s: lr_factor(s, total_steps, cfg["scheduler"].get("warmup_steps", 0), cfg["scheduler"]["type"]))
+        opt, lambda s: lr_factor(s, total_steps, sc.get("warmup_steps", 0), sc["type"],
+                                 sc.get("min_lr", 0.0) / cfg["optimizer"]["lr"]))
     clip = cfg["optimizer"].get("grad_clip")
 
     out = run_dir(cfg)
@@ -111,7 +128,12 @@ def main():
     print(f"{cfg['name']} | {ds['name']} vocab={vocab_size} | {n_params:,} params | {device} | {total_steps} steps")
 
     t0 = time.perf_counter()
+    train_loader, bs = None, None
     for epoch in range(start_epoch, tr["epochs"] + 1):
+        if batch_size_at(ds, epoch) != bs:
+            bs = batch_size_at(ds, epoch)
+            train_loader = make_train_loader(epoch)
+            print(f"epoca {epoch}: batch_size {bs} ({len(train_loader)} steps/epoca)")
         model.train()
         win_loss = win_hits = win_n = 0
         ep_loss = ep_hits = ep_n = 0

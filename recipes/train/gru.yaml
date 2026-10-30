@@ -1,0 +1,59 @@
+# Receita de treino. Treinar: python train.py recipes/train/gru.yaml
+#                    Avaliar:  python eval.py recipes/train/gru.yaml
+#
+# `dataset` aponta para uma pasta de data/ (gerada por gen.py). Labels == -100 são
+# ignorados na loss e na acurácia. `model.args` vão direto para o construtor.
+
+name: gru_mqar_64_kv8        # nome da run (pasta em checkpoints/<name>/)
+seed: 0
+device: auto                 # auto | cpu | cuda
+
+dataset:
+  name: mqar_200_kv16
+  train_split: train
+  eval_split: test
+  batch_size: 128
+  # opcional: troca o batch_size a partir de uma época (a última entrada com from_epoch <= época vale)
+  batch_size_schedule: [
+    {from_epoch: 1, batch_size: 8},
+    {from_epoch: 4, batch_size: 32},
+    {from_epoch: 8, batch_size: 64},
+    {from_epoch: 16, batch_size: 128},
+  ]    # ex.: [{from_epoch: 1, batch_size: 32}, {from_epoch: 6, batch_size: 128}]
+  num_workers: 0             # 0 é o mais rápido para estes datasets
+
+model:
+  type: gru                  # rnn | gru | lstm | transformer
+  args:
+    d_model: 256
+    num_layers: 2
+    dropout: 0.1
+  # vocab_size não entra aqui: vem de data/<name>/config.json
+
+optimizer:
+  type: adam                 # adam | adamw | sgd
+  lr: 1.0e-3
+  weight_decay: 0.0
+  grad_clip: 1.0             # norma máxima do gradiente; null desliga
+
+scheduler:
+  type: cosine               # cosine | constant
+  warmup_steps: 100
+  min_lr: 1.0e-4                # lr final do cosine (ex.: 1.0e-5); 0 decai até zero
+
+train:
+  epochs: 20
+  eval_every: 1              # em épocas
+  log_every: 100             # em steps
+
+eval_datasets: []            # datasets extras p/ eval.py (mesmo vocab_size), ex.: [ar_extrapolate]
+
+checkpoint:
+  dir: checkpoints           # best.pt, last.pt e epoch_NNN.pt ficam em <dir>/<name>/
+  save_every: 5              # em épocas (a última época sempre é salva)
+  keep_last: 3               # quantos epoch_NNN.pt manter
+  resume: false              # true retoma do last.pt; false recomeça do zero
+
+logging:
+  wandb: false               # train.csv é sempre escrito
+  project: isaac

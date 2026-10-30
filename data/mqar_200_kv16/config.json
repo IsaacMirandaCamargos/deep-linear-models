@@ -1,0 +1,13 @@
+{
+  "name": "mqar",
+  "out_dir": "/home/isaac/isaac/data/mqar_200_kv16",
+  "seed": 123,
+  "vocab_size": 8192,
+  "input_seq_len": 200,
+  "num_train": 100000,
+  "num_test": 3000,
+  "power_a": 0.01,
+  "num_kv_pairs": 16,
+  "num_passes": 1,
+  "random_non_queries": true
+}

@@ -16,6 +16,16 @@ datasets:
       num_test: 3000
       seed: 123
 
+  - name: mqar_200_kv16
+    task: mqar
+    args:
+      vocab_size: 8192
+      input_seq_len: 200
+      num_kv_pairs: 16
+      num_train: 100000
+      num_test: 3000
+      seed: 123
+
   - name: compositional_mqar
     task: compositional_mqar
     args: {input_seq_len: 64, num_kv_pairs: 4}

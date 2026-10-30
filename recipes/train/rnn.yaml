@@ -12,15 +12,22 @@ dataset:
   name: mqar_64_kv8
   train_split: train
   eval_split: test
-  batch_size: 64
+  batch_size: 128
+  # opcional: troca o batch_size a partir de uma época (a última entrada com from_epoch <= época vale)
+  batch_size_schedule: [
+    {from_epoch: 1, batch_size: 8},
+    {from_epoch: 4, batch_size: 32},
+    {from_epoch: 8, batch_size: 64},
+    {from_epoch: 16, batch_size: 128},
+  ]    # ex.: [{from_epoch: 1, batch_size: 32}, {from_epoch: 6, batch_size: 128}]
   num_workers: 0             # 0 é o mais rápido para estes datasets
 
 model:
-  type: rnn                  # rnn | transformer (futuro)
+  type: rnn                  # rnn | gru | lstm | transformer
   args:
-    d_model: 128
+    d_model: 256
     num_layers: 1
-    dropout: 0.0
+    dropout: 0.1
   # vocab_size não entra aqui: vem de data/<name>/config.json
 
 optimizer:
@@ -32,6 +39,7 @@ optimizer:
 scheduler:
   type: cosine               # cosine | constant
   warmup_steps: 100
+  min_lr: 1.0e-4                # lr final do cosine (ex.: 1.0e-5); 0 decai até zero
 
 train:
   epochs: 20
