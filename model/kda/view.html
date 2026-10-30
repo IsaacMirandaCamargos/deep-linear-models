@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KDA — Kimi Delta Attention</title>
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['$$', '$$']] }, svg: { fontCache: 'global' } };
+</script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js"></script>
+<style>
+  :root {
+    --bg: #fafaf9; --surface: #ffffff; --surface-2: #f3f2ef; --border: #e4e2dd;
+    --fg: #1c1b19; --muted: #6b6963;
+    --accent: #3b5bdb; --accent-soft: #e7ecfd;
+    --c-decay: #d9480f; --c-erase: #7048e8; --c-write: #0c8f6b;
+    --pos: #d9480f; --neg: #3b5bdb;
+    --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.05);
+    --radius: 16px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121214; --surface: #1b1b1f; --surface-2: #232328; --border: #2e2e35;
+      --fg: #ececf0; --muted: #9a9aa6;
+      --accent: #8da2ff; --accent-soft: #232a4a;
+      --c-decay: #ff922b; --c-erase: #b197fc; --c-write: #38d9a9;
+      --pos: #ff922b; --neg: #748ffc;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121214; --surface: #1b1b1f; --surface-2: #232328; --border: #2e2e35;
+    --fg: #ececf0; --muted: #9a9aa6;
+    --accent: #8da2ff; --accent-soft: #232a4a;
+    --c-decay: #ff922b; --c-erase: #b197fc; --c-write: #38d9a9;
+    --pos: #ff922b; --neg: #748ffc;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 19px/1.65 Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 0 16px 80px; }
+  code, .mono { font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; }
+
+  /* top bar */
+  nav {
+    position: sticky; top: 0; z-index: 10; backdrop-filter: blur(12px);
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    border-bottom: 1px solid var(--border);
+  }
+  nav .in { max-width: 1280px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 6px; overflow-x: auto; }
+  nav a { color: var(--muted); text-decoration: none; font-size: 16px; padding: 6px 12px; border-radius: 999px; white-space: nowrap; }
+  nav a:hover { color: var(--fg); background: var(--surface-2); }
+  nav .brand { font-weight: 700; color: var(--fg); }
+  .theme-btn { border: 1px solid var(--border); background: var(--surface); color: var(--fg); border-radius: 999px; width: 34px; height: 34px; cursor: pointer; font-size: 15px; flex: none; }
+
+  /* hero */
+  .hero { padding: 56px 0 28px; }
+  .eyebrow { display: inline-block; font-size: 15px; font-weight: 600; letter-spacing: .04em; color: var(--accent); background: var(--accent-soft); padding: 4px 12px; border-radius: 999px; }
+  h1 { font-size: clamp(42px, 7vw, 72px); line-height: 1.08; margin: 16px 0 12px; letter-spacing: -.02em; }
+  .lead { color: var(--muted); font-size: 22px; max-width: 64ch; margin: 0; }
+
+  section { margin-top: 56px; scroll-margin-top: 70px; }
+  h2 { font-size: 32px; letter-spacing: -.01em; margin: 0 0 6px; }
+  .section-sub { color: var(--muted); margin: 0 0 20px; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 32px; }
+  .eq { overflow-x: auto; padding: 8px 0; text-align: center; }
+  .eq mjx-container { margin: 0 !important; }
+  .eq mjx-container[display="true"] { font-size: 125% !important; }
+
+  /* term legend */
+  .terms { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-top: 20px; }
+  .term { border: 1px solid var(--border); border-left-width: 4px; border-radius: 12px; padding: 12px 14px; background: var(--surface-2); }
+  .term b { display: block; margin-bottom: 2px; }
+  .term span { color: var(--muted); font-size: 16px; }
+  .t-decay { border-left-color: var(--c-decay); } .t-decay b { color: var(--c-decay); }
+  .t-erase { border-left-color: var(--c-erase); } .t-erase b { color: var(--c-erase); }
+  .t-write { border-left-color: var(--c-write); } .t-write b { color: var(--c-write); }
+
+  .dims { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .chip { font-size: 16px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; color: var(--muted); }
+
+  /* tabs */
+  .tabs { display: flex; gap: 4px; padding: 4px; background: var(--surface-2); border-radius: 12px; width: fit-content; max-width: 100%; overflow-x: auto; margin-bottom: 16px; }
+  .tab { border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 17px; font-weight: 500; padding: 10px 20px; border-radius: 9px; cursor: pointer; white-space: nowrap; }
+  .tab:hover { color: var(--fg); }
+  .tab[aria-selected="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  .panel[hidden] { display: none; }
+  .panel p { margin: 14px 0 0; color: var(--muted); }
+  .panel p b { color: var(--fg); }
+
+  /* simulator */
+  .sim { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; }
+  @media (max-width: 760px) { .sim { grid-template-columns: 1fr; } }
+  .heat-wrap { display: flex; gap: 8px; align-items: stretch; }
+  .heat-axis { display: flex; flex-direction: column; justify-content: space-around; font-size: 14px; color: var(--muted); padding: 0 2px; }
+  .heat-col { flex: 1; min-width: 0; }
+  .heat { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; }
+  .cell { aspect-ratio: 1; border-radius: 6px; display: grid; place-items: center; font-size: 14px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.35); transition: background-color .35s ease; }
+  .heat-x { text-align: center; font-size: 14px; color: var(--muted); margin-top: 6px; }
+  .legend-bar { height: 8px; border-radius: 999px; margin-top: 12px; background: linear-gradient(90deg, var(--neg), var(--surface-2), var(--pos)); }
+  .legend-lbl { display: flex; justify-content: space-between; font-size: 14px; color: var(--muted); margin-top: 4px; }
+
+  .controls { display: flex; flex-direction: column; gap: 18px; }
+  .ctl label { display: flex; justify-content: space-between; font-size: 17px; font-weight: 500; margin-bottom: 6px; }
+  .ctl label span { color: var(--accent); font-family: ui-monospace, monospace; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background: var(--surface-2); border-radius: 10px; }
+  .seg button { border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 15px; font-weight: 500; padding: 10px 6px; border-radius: 7px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  .btns { display: flex; gap: 8px; }
+  .btn { flex: 1; border: 1px solid var(--border); background: var(--surface); color: var(--fg); font: inherit; font-size: 16px; font-weight: 500; padding: 12px 14px; border-radius: 10px; cursor: pointer; }
+  .btn:hover { background: var(--surface-2); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { filter: brightness(1.08); background: var(--accent); }
+  .btn:disabled { opacity: .45; cursor: default; }
+
+  .stepinfo { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 16px; color: var(--muted); }
+  .stepinfo b { color: var(--fg); font-family: ui-monospace, monospace; }
+  .bars { display: flex; align-items: flex-end; gap: 6px; height: 90px; margin-top: 14px; }
+  .bar { flex: 1; background: var(--accent-soft); border-radius: 6px 6px 2px 2px; position: relative; min-height: 4px; transition: height .3s ease, background-color .3s; }
+  .bar.on { background: var(--accent); }
+  .bar-lbl { display: flex; gap: 6px; font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .bar-lbl span { flex: 1; text-align: center; }
+  .hint { font-size: 15px; color: var(--muted); margin: 0; }
+
+  /* compare table */
+  .tbl-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 640px; }
+  th, td { padding: 14px 12px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  th { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  tr:last-child td { border-bottom: 0; }
+  tr.me { background: var(--accent-soft); }
+  tr.me td:first-child { border-radius: 10px 0 0 10px; font-weight: 700; color: var(--accent); }
+  tr.me td:last-child { border-radius: 0 10px 10px 0; }
+  .yes { color: var(--c-write); font-weight: 600; } .no { color: var(--muted); }
+
+  footer { margin-top: 64px; color: var(--muted); font-size: 15px; text-align: center; }
+
+  /* ---- abas principais ---- */
+  .view[hidden] { display: none; }
+  nav .brand { margin-right: 4px; }
+  .mainTabs { display: flex; gap: 4px; padding: 4px; background: var(--surface-2); border-radius: 999px; flex: none; }
+  .mainTabs button { border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 15px; font-weight: 600; padding: 7px 16px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+  .mainTabs button:hover { color: var(--fg); }
+  .mainTabs button[aria-selected="true"] { background: var(--accent); color: #fff; }
+  nav .links { display: flex; gap: 2px; margin-left: auto; }
+  nav .links[hidden] { display: none; }
+
+  /* ---- config ---- */
+  .cfg-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
+  .cfg-grid label { display: flex; flex-direction: column; gap: 6px; font-size: 15px; color: var(--muted); font-weight: 500; }
+  .cfg-grid input { font: inherit; font-size: 18px; font-family: ui-monospace, monospace; color: var(--fg); background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; width: 100%; }
+  .cfg-grid input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .chip.hl { background: var(--accent-soft); color: var(--accent); border-color: transparent; font-weight: 600; }
+
+  /* ---- fluxo ---- */
+  .flow { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 24px; align-items: start; }
+  @media (max-width: 900px) { .flow { grid-template-columns: 1fr; } .stages { position: static !important; } }
+  .stages { list-style: none; margin: 0; padding: 0; position: sticky; top: 76px; }
+  .stage { display: flex; gap: 12px; align-items: center; padding: 8px 10px; border-radius: 12px; cursor: pointer; border: 1px solid transparent; position: relative; height: 66px; }
+  .stage::after { content: ""; position: absolute; left: 24px; top: 50%; height: 100%; width: 2px; background: var(--border); z-index: 0; }
+  .stage:last-child::after { display: none; }
+  .stage:hover { background: var(--surface-2); }
+  .stage .num { width: 30px; height: 30px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 14px; font-weight: 600; background: var(--surface); color: var(--muted); border: 2px solid var(--border); z-index: 1; transition: background-color .2s, border-color .2s; }
+  .stage .txt { min-width: 0; }
+  .stage .t { font-size: 17px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stage .b { font-size: 13px; color: var(--muted); font-family: ui-monospace, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stage.done .num { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft); }
+  .stage.done::after { background: var(--accent); opacity: .5; }
+  .stage.active { background: var(--surface); border-color: var(--border); box-shadow: var(--shadow); }
+  .stage.active .num { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .detail { min-height: 520px; }
+  .d-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .badge { font-size: 14px; padding: 3px 12px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .badge.alt { background: var(--surface-2); color: var(--muted); }
+  .d-title { font-size: 30px; margin: 12px 0 0; letter-spacing: -.01em; line-height: 1.2; }
+  .progress { height: 4px; background: var(--surface-2); border-radius: 99px; overflow: hidden; margin: 16px 0 22px; }
+  .progress i { display: block; height: 100%; background: var(--accent); transition: width .3s ease; }
+
+  .io { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: center; }
+  @media (max-width: 760px) { .io { grid-template-columns: 1fr; } .io .arrow { transform: rotate(90deg); justify-self: center; } }
+  .io .col { background: var(--surface-2); border-radius: 12px; padding: 12px 16px; }
+  .io h4 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
+  .io .arrow { font-size: 26px; color: var(--accent); }
+  .shape { display: grid; grid-template-columns: 2.4em 1fr auto; gap: 10px; align-items: baseline; padding: 3px 0; font-size: 16px; }
+  .shape .n { font-weight: 700; }
+  .shape .s { color: var(--muted); font-family: ui-monospace, monospace; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .shape .v { font-family: ui-monospace, monospace; color: var(--accent); font-weight: 600; font-size: 15px; white-space: nowrap; }
+
+  .detail .eq { background: var(--surface-2); border-radius: 12px; margin: 20px 0; padding: 14px 8px; }
+  .detail h4.sec { margin: 22px 0 4px; font-size: 14px; text-transform: uppercase; letter-spacing: .07em; color: var(--c-write); }
+  .detail h4.sec.why { color: var(--c-erase); }
+  .detail p { margin: 0; }
+  .detail ul { margin: 6px 0 0; padding-left: 1.2em; }
+  .detail li { margin: 4px 0; }
+  .nav-btns { display: flex; justify-content: space-between; gap: 12px; margin-top: 28px; }
+  .nav-btns .btn { flex: 0 0 auto; min-width: 150px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="in">
+    <span class="brand">KDA</span>
+    <div class="mainTabs" role="tablist">
+      <button role="tab" data-view-tab="overview" aria-selected="true">Visão geral</button>
+      <button role="tab" data-view-tab="flow" aria-selected="false">Fluxo de x</button>
+    </div>
+    <div class="links" data-links="overview">
+      <a href="#equacao">Equação</a>
+      <a href="#formas">Outras formas</a>
+      <a href="#simulador">Simulador</a>
+      <a href="#comparacao">Comparação</a>
+    </div>
+    <div class="links" data-links="flow" hidden>
+      <a href="#cfg">Dimensões</a>
+      <a href="#etapas">Etapas</a>
+    </div>
+    <button class="theme-btn" id="theme" title="Alternar tema" aria-label="Alternar tema">◐</button>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <header class="hero">
+    <span class="eyebrow">Kimi Linear · Moonshot AI · 2025</span>
+    <h1>Kimi Delta Attention</h1>
+    <p class="lead">Atenção linear com memória matricial, atualizada pela <i>delta rule</i> e com esquecimento controlado <b>por canal</b>.</p>
+  </header>
+
+<div class="view" id="view-overview">
+  <!-- EQUAÇÃO -->
+  <section id="equacao">
+    <h2>A equação principal</h2>
+    <p class="section-sub">Um passo de recorrência: três ações sobre o estado \(S\).</p>
+    <div class="card">
+      <div class="eq">
+        $$S_t \;=\; \underbrace{\left(I - \beta_t\, k_t k_t^\top\right)}_{\text{apaga}}\;\underbrace{\mathrm{Diag}(\alpha_t)\, S_{t-1}}_{\text{decai}} \;+\; \underbrace{\beta_t\, k_t v_t^\top}_{\text{escreve}}$$
+        $$o_t \;=\; S_t^\top q_t$$
+      </div>
+      <div class="terms">
+        <div class="term t-decay"><b>1 · Decai</b><span>Cada linha de \(S\) (canal de \(k\)) é multiplicada pelo seu \(\alpha_{t,i}\). É aqui que o KDA se diferencia.</span></div>
+        <div class="term t-erase"><b>2 · Apaga</b><span>Remove da memória o valor antigo associado à direção \(k_t\), com intensidade \(\beta_t\).</span></div>
+        <div class="term t-write"><b>3 · Escreve</b><span>Grava o novo par chave–valor \(k_t v_t^\top\), também ponderado por \(\beta_t\).</span></div>
+      </div>
+      <div class="dims">
+        <span class="chip">\(S_t \in \mathbb{R}^{d_k \times d_v}\)</span>
+        <span class="chip">\(\alpha_t \in (0,1)^{d_k}\)</span>
+        <span class="chip">\(\beta_t \in (0,1)\)</span>
+        <span class="chip">\(q_t, k_t \in \mathbb{R}^{d_k}\)</span>
+        <span class="chip">\(v_t \in \mathbb{R}^{d_v}\)</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- FORMAS -->
+  <section id="formas">
+    <h2>Formas equivalentes</h2>
+    <p class="section-sub">A mesma atualização, vista de ângulos diferentes. Seja \(\tilde S = \mathrm{Diag}(\alpha_t)\,S_{t-1}\).</p>
+    <div class="card">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" aria-selected="true" data-tab="0">Delta</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="1">Gradiente</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="2">Por coluna</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="3">Implementação</button>
+      </div>
+
+      <div class="panel" data-panel="0">
+        <div class="eq">
+          $$S_t = \tilde S - \beta_t k_t\!\left(k_t^\top \tilde S\right) + \beta_t k_t v_t^\top
+          = \tilde S + \beta_t\, k_t\left(v_t - \tilde S^\top k_t\right)^\top$$
+        </div>
+        <p><b>Correção do erro.</b> \(\tilde S^\top k_t\) é o que a memória prevê para a chave \(k_t\). O estado é ajustado pela diferença entre o valor real e essa previsão.</p>
+      </div>
+
+      <div class="panel" data-panel="1" hidden>
+        <div class="eq">
+          $$\mathcal{L}(S)=\tfrac12\left\|S^\top k_t - v_t\right\|^2,\qquad \nabla\mathcal{L}=k_t\left(S^\top k_t - v_t\right)^\top$$
+          $$S_t = \tilde S - \beta_t\,\nabla\mathcal{L}(\tilde S)$$
+        </div>
+        <p><b>SGD online.</b> \(\alpha\) faz o papel de <i>weight decay</i> e \(\beta\) de <i>learning rate</i>. A memória aprende a regredir \(v\) a partir de \(k\) a cada token.</p>
+      </div>
+
+      <div class="panel" data-panel="2" hidden>
+        <div class="eq">
+          $$s_t^{(j)} = \left(I - \beta_t k_t k_t^\top\right)\mathrm{Diag}(\alpha_t)\, s_{t-1}^{(j)} + \beta_t\, v_t^{(j)}\, k_t$$
+        </div>
+        <p><b>Colunas independentes.</b> Cada coluna \(s^{(j)} \in \mathbb{R}^{d_k}\) de \(S\) (uma por dimensão de \(v\)) evolui sozinha com o mesmo operador.</p>
+      </div>
+
+      <div class="panel" data-panel="3" hidden>
+        <pre class="mono" style="margin:0;overflow-x:auto;background:var(--surface-2);padding:16px;border-radius:12px;font-size:16px;line-height:1.6"><code>S = alpha[:, None] * S              # decai   (d_k, d_v)
+err = v - S.T @ k                    # erro    (d_v,)
+S = S + beta * torch.outer(k, err)   # corrige
+o = S.T @ q                          # saída</code></pre>
+        <p><b>Sem materializar</b> \(I-\beta kk^\top\) (uma matriz \(d_k\times d_k\)). Custa um matvec e um produto externo por passo.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SIMULADOR -->
+  <section id="simulador">
+    <h2>Simulador da memória</h2>
+    <p class="section-sub">Veja \(S\) mudando token a token. Linhas = canais de \(k\), colunas = dimensões de \(v\).</p>
+    <div class="card">
+      <div class="sim">
+        <div>
+          <div class="heat-wrap">
+            <div class="heat-axis" id="yaxis"></div>
+            <div class="heat-col">
+              <div class="heat" id="heat"></div>
+              <div class="heat-x">dimensões de \(v\) →</div>
+            </div>
+          </div>
+          <div class="legend-bar"></div>
+          <div class="legend-lbl"><span>negativo</span><span>0</span><span>positivo</span></div>
+
+          <div class="stepinfo">
+            <span>Token <b id="i-t">0</b>/<b id="i-T">8</b></span>
+            <span>Chave usada <b id="i-k">–</b></span>
+            <span>Erro antes <b id="i-e">–</b></span>
+          </div>
+          <div class="bars" id="bars"></div>
+          <div class="bar-lbl" id="barlbl"></div>
+          <p class="hint" style="margin-top:10px">Barras: erro de previsão \(\|v_t-\tilde S^\top k_t\|\) por token. Quando uma chave se repete com outro valor, a delta rule sobrescreve em vez de acumular.</p>
+        </div>
+
+        <div class="controls">
+          <div class="ctl">
+            <label>Gate de esquecimento</label>
+            <div class="seg" id="mode">
+              <button data-m="scalar" aria-pressed="false">Escalar (GDN)</button>
+              <button data-m="channel" aria-pressed="true">Por canal (KDA)</button>
+            </div>
+          </div>
+          <div class="ctl">
+            <label for="amin">α mínimo <span id="v-amin">0.60</span></label>
+            <input type="range" id="amin" min="0.3" max="1" step="0.01" value="0.6">
+            <p class="hint" style="margin-top:6px">No KDA, α vai de este valor (canal 0) até 1.00 (último canal). No escalar, todos usam a média.</p>
+          </div>
+          <div class="ctl">
+            <label for="beta">β (intensidade) <span id="v-beta">0.80</span></label>
+            <input type="range" id="beta" min="0" max="1" step="0.01" value="0.8">
+          </div>
+          <div class="btns">
+            <button class="btn primary" id="next">Próximo token</button>
+            <button class="btn" id="reset">Reiniciar</button>
+          </div>
+          <button class="btn" id="play">▶ Rodar tudo</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPARAÇÃO -->
+  <section id="comparacao">
+    <h2>Onde o KDA se encaixa</h2>
+    <p class="section-sub">Família de atenções lineares com estado matricial.</p>
+    <div class="card">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Modelo</th><th>Atualização</th><th>Delta rule</th><th>Decay</th></tr></thead>
+          <tbody>
+            <tr><td>Linear attention</td><td>\(S_{t-1} + k_t v_t^\top\)</td><td class="no">não</td><td class="no">nenhum</td></tr>
+            <tr><td>Mamba2 / GLA</td><td>\(\mathrm{Diag}(\alpha_t) S_{t-1} + k_t v_t^\top\)</td><td class="no">não</td><td>escalar / diag.</td></tr>
+            <tr><td>DeltaNet</td><td>\((I-\beta_t k_t k_t^\top) S_{t-1} + \beta_t k_t v_t^\top\)</td><td class="yes">sim</td><td class="no">nenhum</td></tr>
+            <tr><td>Gated DeltaNet</td><td>DeltaNet com \(\alpha_t\) escalar</td><td class="yes">sim</td><td>escalar</td></tr>
+            <tr class="me"><td>KDA</td><td>DeltaNet com \(\mathrm{Diag}(\alpha_t)\)</td><td class="yes">sim</td><td class="yes">por canal</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="view" id="view-flow" hidden>
+  <section id="cfg" style="margin-top:40px">
+    <h2>O caminho de x pela camada KDA</h2>
+    <p class="section-sub">Do vetor que entra até o vetor que sai, etapa por etapa. Ajuste as dimensões para ver os formatos reais dos tensores.</p>
+    <div class="card">
+      <div class="cfg-grid">
+        <label>d (hidden)<input type="number" id="c-d" value="2048" min="1"></label>
+        <label>H (cabeças)<input type="number" id="c-H" value="16" min="1"></label>
+        <label>d_k = d_v<input type="number" id="c-dk" value="128" min="1"></label>
+        <label>T (contexto)<input type="number" id="c-T" value="32768" min="1"></label>
+      </div>
+      <div class="dims" id="memchips"></div>
+    </div>
+  </section>
+
+  <section id="etapas" style="margin-top:32px">
+    <div class="flow">
+      <ol class="stages" id="stages"></ol>
+      <div class="card detail" id="detail"></div>
+    </div>
+    <p class="hint" style="margin-top:14px">Dica: use as setas ← → do teclado para navegar entre as etapas.</p>
+  </section>
+</div>
+
+  <footer>No Kimi Linear, o KDA se alterna com camadas MLA globais na proporção 3 : 1.</footer>
+</div>
+
+<script>
+/* tema */
+(function () {
+  const root = document.documentElement;
+  try { const s = localStorage.getItem('kda-theme'); if (s) root.dataset.theme = s; } catch (e) {}
+  document.getElementById('theme').onclick = () => {
+    const dark = root.dataset.theme ? root.dataset.theme === 'dark'
+      : matchMedia('(prefers-color-scheme: dark)').matches;
+    root.dataset.theme = dark ? 'light' : 'dark';
+    try { localStorage.setItem('kda-theme', root.dataset.theme); } catch (e) {}
+    draw();
+  };
+})();
+
+/* abas */
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', x === t));
+  document.querySelectorAll('.panel').forEach(p => p.hidden = p.dataset.panel !== t.dataset.tab);
+});
+
+/* simulador */
+const D = 6, T = 8;
+function rng(seed) { return () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296; }
+const rand = rng(7);
+const unit = v => { const n = Math.hypot(...v); return v.map(x => x / n); };
+const pool = [0, 1, 2].map(() => unit(Array.from({ length: D }, () => rand() * 2 - 1)));
+const keyIdx = [0, 1, 2, 0, 1, 0, 2, 1];                       // chaves se repetem
+const toks = keyIdx.map(i => ({ ki: i, k: pool[i], v: Array.from({ length: D }, () => rand() * 2 - 1) }));
+
+const st = { S: zeros(), t: 0, err: [], playing: null, mode: 'channel' };
+function zeros() { return Array.from({ length: D }, () => Array(D).fill(0)); }
+
+const $ = id => document.getElementById(id);
+const heat = $('heat');
+for (let i = 0; i < D * D; i++) { const c = document.createElement('div'); c.className = 'cell'; heat.appendChild(c); }
+$('yaxis').innerHTML = Array.from({ length: D }, (_, i) => `<span>k${i}</span>`).join('');
+$('i-T').textContent = T;
+$('bars').innerHTML = Array.from({ length: T }, () => '<div class="bar"></div>').join('');
+$('barlbl').innerHTML = Array.from({ length: T }, (_, i) => `<span>${i + 1}</span>`).join('');
+
+function alphas() {
+  const lo = +$('amin').value;
+  if (st.mode === 'channel') return Array.from({ length: D }, (_, i) => lo + (1 - lo) * i / (D - 1));
+  const m = (lo + 1) / 2;
+  return Array(D).fill(m);
+}
+
+function step() {
+  if (st.t >= T) return false;
+  const { k, v, ki } = toks[st.t], a = alphas(), b = +$('beta').value;
+  const Sd = st.S.map((row, i) => row.map(x => a[i] * x));
+  const pred = Array.from({ length: D }, (_, j) => k.reduce((s, ki2, i) => s + ki2 * Sd[i][j], 0));
+  const e = v.map((x, j) => x - pred[j]);
+  st.S = Sd.map((row, i) => row.map((x, j) => x + b * k[i] * e[j]));
+  st.err.push(Math.hypot(...e));
+  st.last = ki;
+  st.t++;
+  return true;
+}
+
+function reset() { stop(); st.S = zeros(); st.t = 0; st.err = []; st.last = null; draw(); }
+function stop() { if (st.playing) { clearInterval(st.playing); st.playing = null; $('play').textContent = '▶ Rodar tudo'; } }
+
+function color(x) {
+  const cs = getComputedStyle(document.documentElement);
+  const m = Math.min(1, Math.abs(x) / 1.2);
+  const base = cs.getPropertyValue(x >= 0 ? '--pos' : '--neg').trim();
+  return `color-mix(in srgb, ${base} ${Math.round(m * 100)}%, ${cs.getPropertyValue('--surface-2').trim()})`;
+}
+
+function draw() {
+  const cells = heat.children;
+  st.S.forEach((row, i) => row.forEach((x, j) => {
+    const c = cells[i * D + j];
+    c.style.backgroundColor = color(x);
+    c.textContent = Math.abs(x) > 0.005 ? x.toFixed(2) : '';
+  }));
+  $('i-t').textContent = st.t;
+  $('i-k').textContent = st.last == null ? '–' : 'K' + 'ABC'[st.last];
+  $('i-e').textContent = st.err.length ? st.err[st.err.length - 1].toFixed(2) : '–';
+  const mx = Math.max(1.5, ...st.err);
+  [...$('bars').children].forEach((b, i) => {
+    const has = i < st.err.length;
+    b.style.height = has ? Math.max(4, st.err[i] / mx * 100) + '%' : '4px';
+    b.classList.toggle('on', has);
+  });
+  $('next').disabled = st.t >= T;
+}
+
+$('next').onclick = () => { stop(); step(); draw(); };
+$('reset').onclick = reset;
+$('play').onclick = () => {
+  if (st.playing) return stop();
+  if (st.t >= T) reset();
+  $('play').textContent = '❚❚ Pausar';
+  st.playing = setInterval(() => { if (!step()) stop(); draw(); }, 650);
+};
+$('mode').querySelectorAll('button').forEach(b => b.onclick = () => {
+  st.mode = b.dataset.m;
+  $('mode').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  reset();
+});
+['amin', 'beta'].forEach(id => $(id).oninput = () => {
+  $('v-' + id).textContent = (+$(id).value).toFixed(2);
+  reset();
+});
+draw();
+
+/* ---- abas principais ---- */
+function showView(v) {
+  document.querySelectorAll('.view').forEach(e => e.hidden = e.id !== 'view-' + v);
+  document.querySelectorAll('[data-view-tab]').forEach(b => b.setAttribute('aria-selected', b.dataset.viewTab === v));
+  document.querySelectorAll('[data-links]').forEach(e => e.hidden = e.dataset.links !== v);
+  try { history.replaceState(null, '', v === 'flow' ? '#fluxo' : location.pathname); } catch (e) {}
+  window.scrollTo({ top: 0 });
+}
+document.querySelectorAll('[data-view-tab]').forEach(b => b.onclick = () => showView(b.dataset.viewTab));
+if (location.hash === '#fluxo') showView('flow');
+
+/* ---- fluxo de x ---- */
+const R = String.raw;
+const cfg = { d: 2048, H: 16, dk: 128, T: 32768 };
+const sh = (name, sym, dims) => ({ name, sym: '[' + sym.join(', ') + ']', val: '[' + dims.join(', ') + ']' });
+const fmtN = n => n.toLocaleString('pt-BR');
+
+function buildStages(c) {
+  const dv = c.dk;
+  const x  = sh('x',  ['d'],           [c.d]);
+  const q  = sh('q',  ['H', 'd_k'],    [c.H, c.dk]);
+  const k  = sh('k',  ['H', 'd_k'],    [c.H, c.dk]);
+  const v  = sh('v',  ['H', 'd_v'],    [c.H, dv]);
+  const al = sh('α',  ['H', 'd_k'],    [c.H, c.dk]);
+  const be = sh('β',  ['H'],           [c.H]);
+  const g  = sh('g',  ['H', 'd_v'],    [c.H, dv]);
+  const S  = sh('S',  ['H', 'd_k', 'd_v'], [c.H, c.dk, dv]);
+  const o  = sh('o',  ['H', 'd_v'],    [c.H, dv]);
+  const y  = sh('y',  ['d'],           [c.d]);
+  return [
+    {
+      title: 'Entrada x', tag: 'por token', brief: `x_t ${x.val}`,
+      inn: [x], out: [x],
+      eq: R`$$X \in \mathbb{R}^{T\times d},\qquad x_t \in \mathbb{R}^{d}$$`,
+      what: R`A camada recebe os hidden states da camada anterior, normalmente já passados por um RMSNorm de pré-camada. Cada token \(x_t\) é um vetor de tamanho \(d\). Quase tudo daqui até a recorrência é feito token a token; a única mistura entre tokens antes da memória é a short conv da etapa 3.`,
+      why: R`A saída precisará ter tamanho \(d\) de novo, porque será somada a \(x_t\) por uma conexão residual.`
+    },
+    {
+      title: 'Projeções lineares', tag: 'paralelo · 6 ramos', brief: 'x → q, k, v, α, β, g',
+      inn: [x], out: [q, k, v, al, be, g],
+      eq: R`$$q_t = W_q x_t,\;\; k_t = W_k x_t,\;\; v_t = W_v x_t,\;\; \beta_t^{\mathrm{raw}} = W_\beta x_t$$
+            $$\alpha_t^{\mathrm{raw}} = W_\alpha^{\uparrow} W_\alpha^{\downarrow} x_t,\qquad g_t = W_g^{\uparrow} W_g^{\downarrow} x_t$$`,
+      what: R`Um mesmo \(x_t\) vira seis sinais diferentes, cada um reorganizado em \(H\) cabeças independentes (cada cabeça tem sua própria memória \(S\)):
+        <ul>
+          <li>\(q\): o que a cabeça quer consultar</li>
+          <li>\(k\): o endereço onde escrever</li>
+          <li>\(v\): o conteúdo a escrever</li>
+          <li>\(\alpha\): quanto esquecer, um valor por canal de \(k\)</li>
+          <li>\(\beta\): a força da escrita, um escalar por cabeça</li>
+          <li>\(g\): o gate que será aplicado na saída</li>
+        </ul>`,
+      why: R`\(\alpha\) e \(g\) passam por um gargalo de rank \(r\) (\(d \to r \to \cdot\)) para economizar parâmetros: são largos (\(H\cdot d_k\) saídas), ao contrário de \(\beta\), que é só um escalar por cabeça.`
+    },
+    {
+      title: 'Short conv + SiLU', tag: 'só q, k, v', brief: 'mistura tokens vizinhos',
+      inn: [q, k, v], out: [q, k, v],
+      eq: R`$$\tilde u_t = \mathrm{SiLU}\!\Big(\sum_{j=0}^{w-1} c_j \odot u_{t-j}\Big),\qquad u \in \{q, k, v\}$$`,
+      what: R`Uma convolução curta, causal e por canal (depthwise), com janela \(w\) pequena (tipicamente 4), olha os últimos tokens e mistura o que encontra. Em seguida entra a não linearidade SiLU. O formato do tensor não muda.`,
+      why: R`Dá contexto local barato antes da memória (por exemplo, formar uma chave que já sabe qual foi o token anterior). É causal, então não vaza o futuro. Como não há RoPE na KDA, a ordem vem da recorrência e dessa conv.`
+    },
+    {
+      title: 'Normalização L2', tag: 'só q, k', brief: '‖q‖ = ‖k‖ = 1',
+      inn: [q, k], out: [q, k],
+      eq: R`$$\hat q_t = \frac{q_t}{\lVert q_t \rVert_2},\qquad \hat k_t = \frac{k_t}{\lVert k_t \rVert_2}$$`,
+      what: R`\(q\) e \(k\) são divididos pela própria norma, por cabeça, e viram vetores unitários. \(v\) não é normalizado.`,
+      why: R`Com \(\lVert k\rVert = 1\) e \(\beta\in(0,1)\), o operador \(I-\beta kk^\top\) tem autovalor \(1-\beta\) na direção de \(k\) e \(1\) nas ortogonais: é uma contração. O estado não explode, e \(\beta\) passa a ser um learning rate bem comportado.`
+    },
+    {
+      title: 'Gates α e β', tag: 'dependem de x', brief: 'α ∈ (0,1)^d_k · β ∈ (0,1)',
+      inn: [al, be], out: [al, be],
+      eq: R`$$\alpha_t = f\!\left(\alpha_t^{\mathrm{raw}}\right) \in (0,1)^{d_k},\qquad \beta_t = \sigma\!\left(\beta_t^{\mathrm{raw}}\right) \in (0,1)$$`,
+      what: R`Os valores crus das projeções são mapeados para \((0,1)\). \(\alpha\) usa uma função de decay no estilo Mamba2/Gated DeltaNet; \(\beta\) usa sigmoide. Os dois dependem de \(x_t\): a cada token o modelo decide quanto esquecer e com que força escrever.`,
+      why: R`Esta é a diferença do KDA: \(\alpha\) tem \(d_k\) valores por cabeça (um por canal), não um escalar. Cada dimensão da chave pode ter sua própria memória curta ou longa.`
+    },
+    {
+      title: 'Recorrência (atualiza S)', tag: 'sequencial no tempo', brief: `S_(t-1) → S_t ${S.val}`,
+      inn: [S, k, v, al, be], out: [S],
+      eq: R`$$\begin{aligned}
+        {\color{#e8590c}\tilde S} &= {\color{#e8590c}\mathrm{Diag}(\alpha_t)\,S_{t-1}} &&\text{(decai)}\\
+        {\color{#9775fa}e_t} &= {\color{#9775fa}v_t - \tilde S^{\top}\hat k_t} &&\text{(erro de previsão)}\\
+        {\color{#12b886}S_t} &= {\color{#12b886}\tilde S + \beta_t\,\hat k_t\, e_t^{\top}} &&\text{(corrige)}
+        \end{aligned}$$`,
+      what: R`Aqui está o coração da camada. Cada linha de \(S\) esquece no ritmo do seu \(\alpha_i\). A memória então "prevê" o valor da chave atual, mede o erro contra o \(v_t\) real e corrige só essa diferença. Se a chave já estava associada a algo, o valor antigo é sobrescrito em vez de acumulado. No treino, a mesma conta roda em blocos paralelos (algoritmo chunkwise); na inferência roda passo a passo.`,
+      why: R`O tamanho de \(S\) não depende de \(T\): é uma memória de tamanho fixo por camada (veja os números no topo), ao contrário do KV cache, que cresce a cada token.`
+    },
+    {
+      title: 'Leitura da memória', tag: 'consulta', brief: `o_t = S_tᵀ q̂_t ${o.val}`,
+      inn: [S, q], out: [o],
+      eq: R`$$o_t = S_t^{\top}\,\hat q_t \;\in\; \mathbb{R}^{d_v}\quad\text{(por cabeça)}$$`,
+      what: R`A consulta \(\hat q_t\) é projetada na memória: o resultado é uma combinação dos valores armazenados, ponderada pelo alinhamento entre \(\hat q_t\) e as chaves que escreveram em \(S\). A leitura usa \(S_t\), já com o token atual escrito.`,
+      why: R`É o análogo do "softmax(QKᵀ)V" da atenção, mas sem varrer o passado: o histórico já está comprimido em \(S\), então ler custa \(O(d_k d_v)\) por token.`
+    },
+    {
+      title: 'RMSNorm por cabeça', tag: 'estabiliza', brief: `norm(o) ${o.val}`,
+      inn: [o], out: [o],
+      eq: R`$$\bar o_t = \mathrm{RMSNorm}(o_t)$$`,
+      what: R`A saída de cada cabeça é normalizada pela sua raiz do valor quadrático médio (com escala aprendida).`,
+      why: R`A escala de \(S^\top q\) depende do que foi escrito na memória e varia muito ao longo da sequência. Normalizar mantém a magnitude previsível para as etapas seguintes.`
+    },
+    {
+      title: 'Gate de saída', tag: 'elemento a elemento', brief: `σ(g) ⊙ o ${o.val}`,
+      inn: [o, g], out: [o],
+      eq: R`$$\tilde o_t = \sigma(g_t)\,\odot\,\bar o_t$$`,
+      what: R`O ramo \(g\), calculado lá na etapa 2 a partir de \(x_t\), passa por uma sigmoide e multiplica a saída normalizada, dimensão por dimensão. Valores perto de 0 silenciam aquela dimensão; perto de 1 deixam passar.`,
+      why: R`Deixa o modelo decidir, olhando para o token atual, quais cabeças e dimensões realmente devem contribuir naquele ponto.`
+    },
+    {
+      title: 'Projeção de saída', tag: 'saída da camada', brief: `y_t ${y.val}`,
+      inn: [o], out: [y],
+      eq: R`$$y_t = W_o\,\mathrm{concat}_{h}\!\big(\tilde o_t^{\,h}\big) \in \mathbb{R}^{d},\qquad x_t' = x_t + y_t$$`,
+      what: R`As \(H\) cabeças são concatenadas (\(H\cdot d_v\) valores) e misturadas por \(W_o\), voltando ao tamanho \(d\). O resultado \(y_t\) é somado ao \(x_t\) original pelo residual e segue para o resto do bloco (normalmente o FFN/MoE).`,
+      why: R`Cada cabeça olhou a história por uma lente própria; \(W_o\) é onde essas visões se combinam em um único vetor de volta no espaço do modelo.`
+    }
+  ];
+}
+
+const flow = { i: 0 };
+const $f = id => document.getElementById(id);
+const shapeRows = a => a.map(s => `<div class="shape"><span class="n">${s.name}</span><span class="s">${s.sym}</span><span class="v">${s.val}</span></div>`).join('');
+
+function typeset(el) {
+  if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([el]).catch(() => {});
+}
+
+function renderChips() {
+  const c = cfg, dv = c.dk;
+  const mem = c.H * c.dk * dv, kv = 2 * c.T * c.H * c.dk;
+  $f('memchips').innerHTML =
+    `<span class="chip hl">Memória S da KDA: ${fmtN(mem)} valores (constante)</span>` +
+    `<span class="chip">KV cache de 1 camada de atenção plena em T = ${fmtN(c.T)}: ${fmtN(kv)} valores</span>` +
+    `<span class="chip">razão: ${(kv / mem).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}×</span>`;
+}
+
+function renderList() {
+  const st = buildStages(cfg);
+  $f('stages').innerHTML = st.map((s, i) =>
+    `<li class="stage${i === flow.i ? ' active' : i < flow.i ? ' done' : ''}" data-i="${i}">` +
+    `<span class="num">${i + 1}</span><span class="txt"><div class="t">${s.title}</div><div class="b">${s.brief}</div></span></li>`).join('');
+  $f('stages').querySelectorAll('.stage').forEach(li => li.onclick = () => selectStage(+li.dataset.i));
+}
+
+function renderDetail() {
+  const st = buildStages(cfg), s = st[flow.i], n = st.length;
+  $f('detail').innerHTML =
+    `<div class="d-head"><span class="badge">Etapa ${flow.i + 1} de ${n}</span><span class="badge alt">${s.tag}</span></div>` +
+    `<h3 class="d-title">${s.title}</h3>` +
+    `<div class="progress"><i style="width:${(flow.i + 1) / n * 100}%"></i></div>` +
+    `<div class="io"><div class="col"><h4>Entra</h4>${shapeRows(s.inn)}</div><div class="arrow">→</div>` +
+    `<div class="col"><h4>Sai</h4>${shapeRows(s.out)}</div></div>` +
+    `<div class="eq">${s.eq}</div>` +
+    `<h4 class="sec">O que acontece</h4><p>${s.what}</p>` +
+    `<h4 class="sec why">Por quê</h4><p>${s.why}</p>` +
+    `<div class="nav-btns"><button class="btn" id="f-prev" ${flow.i === 0 ? 'disabled' : ''}>← Anterior</button>` +
+    `<button class="btn primary" id="f-next" ${flow.i === n - 1 ? 'disabled' : ''}>Próxima →</button></div>`;
+  $f('f-prev').onclick = () => selectStage(flow.i - 1);
+  $f('f-next').onclick = () => selectStage(flow.i + 1);
+  typeset($f('detail'));
+}
+
+function selectStage(i) {
+  flow.i = Math.max(0, Math.min(buildStages(cfg).length - 1, i));
+  renderList(); renderDetail();
+}
+
+[['c-d', 'd'], ['c-H', 'H'], ['c-dk', 'dk'], ['c-T', 'T']].forEach(([id, key]) => {
+  $f(id).oninput = () => {
+    const v = Math.max(1, Math.floor(+$f(id).value) || 1);
+    cfg[key] = v; renderChips(); renderList(); renderDetail();
+  };
+});
+document.addEventListener('keydown', e => {
+  if ($f('view-flow').hidden || /INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  if (e.key === 'ArrowRight') selectStage(flow.i + 1);
+  if (e.key === 'ArrowLeft') selectStage(flow.i - 1);
+});
+renderChips(); renderList(); renderDetail();
+</script>
+</body>
+</html>
